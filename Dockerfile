@@ -5,6 +5,5 @@ WORKDIR /app
 # Copy only the config — secrets come from Railway environment variables
 COPY litellm_config.yaml .
 
-EXPOSE 4000
-
-CMD ["--config", "litellm_config.yaml", "--port", "4000", "--host", "0.0.0.0"]
+# Railway injects $PORT dynamically — we must listen on it
+CMD ["sh", "-c", "litellm --config litellm_config.yaml --port ${PORT:-4000} --host 0.0.0.0"]

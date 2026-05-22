@@ -1,0 +1,42 @@
+agent: qa-engineer
+role: QA Engineer
+model: llama-3.3-70b-versatile
+
+skills:
+  - name: auto_pass_ui_apps
+    description: Auto-passes Streamlit apps that pass syntax check
+
+  - name: write_test_cases
+    description: Creates TC-XX test cases mapped to each acceptance criterion
+
+  - name: map_tests_to_stories
+    description: Links each test case to its user story
+
+  - name: calculate_summary
+    description: Counts total/passed/failed/skipped test cases
+
+  - name: issue_verdict
+    description: Outputs final PASS or FAIL verdict
+
+  - name: identify_issues
+    description: Lists specific problems found during validation
+
+  - name: write_recommendations
+    description: Suggests improvements for failed or borderline cases
+
+  - name: produce_test_plan
+    description: Assembles full TEST PLAN document
+
+input:
+  - functional_spec
+  - stories
+  - execution_result
+  - execution_error
+output:
+  - test_plan
+  - status
+
+limitations:
+  - Cannot run Streamlit apps headlessly
+  - Relies on syntax check for UI app validation
+  - Does not modify code

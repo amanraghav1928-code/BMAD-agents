@@ -1,0 +1,35 @@
+agent: scrum-master
+role: Scrum Master
+model: llama-3.3-70b-versatile
+
+skills:
+  - name: decompose_features
+    description: Splits features into small independently implementable stories
+
+  - name: write_user_stories
+    description: Writes STORY-XX format stories with acceptance criteria and tasks
+
+  - name: define_tasks
+    description: Breaks each story into specific implementation tasks
+
+  - name: prioritize_stories
+    description: Assigns High/Medium/Low priority to each story
+
+  - name: estimate_effort
+    description: Assigns Small/Medium/Large effort estimates
+
+  - name: create_sprint_plan
+    description: Groups stories into logical sprints
+
+  - name: ensure_full_coverage
+    description: Verifies all functional spec features are covered by a story
+
+input:
+  - functional_spec
+  - solution_design
+output: stories
+
+limitations:
+  - Does not write code
+  - Does not make technology decisions
+  - Targets 4-8 stories per project

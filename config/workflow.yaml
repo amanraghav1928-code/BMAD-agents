@@ -1,0 +1,107 @@
+name: BMAD Workflow
+version: 1.0
+description: Full BMAD pipeline from user request to working app + documents
+
+agents:
+  - id: analyst
+    persona: agents/analyst.md
+    skills: skills/analyst.yaml
+    input: user_request
+    output: project_brief
+
+  - id: product_manager
+    persona: agents/product-manager.md
+    skills: skills/product-manager.yaml
+    input: project_brief
+    output: functional_spec
+
+  - id: architect
+    persona: agents/architect.md
+    skills: skills/architect.yaml
+    input: functional_spec
+    output: solution_design
+
+  - id: scrum_master
+    persona: agents/scrum-master.md
+    skills: skills/scrum-master.yaml
+    input:
+      - functional_spec
+      - solution_design
+    output: stories
+
+  - id: developer
+    persona: agents/developer.md
+    skills: skills/developer.yaml
+    input:
+      - functional_spec
+      - solution_design
+      - stories
+      - user_request
+    output: code
+
+  - id: executor
+    type: system
+    description: Saves code to file and runs syntax check
+    input: code
+    output:
+      - execution_result
+      - execution_error
+
+  - id: qa_engineer
+    persona: agents/qa-engineer.md
+    skills: skills/qa-engineer.yaml
+    input:
+      - functional_spec
+      - stories
+      - execution_result
+      - execution_error
+    output:
+      - test_plan
+      - status
+
+flow:
+  - analyst → product_manager
+  - product_manager → architect
+  - architect → scrum_master
+  - scrum_master → developer
+  - developer → executor
+  - executor → qa_engineer (if no error)
+  - executor → developer (if error and retries < max_retries)
+  - qa_engineer → END (if passed)
+  - qa_engineer → developer (if failed and retries < max_retries)
+
+settings:
+  max_debug_retries: 3
+  default_model: llama-3.3-70b-versatile
+  temperature: 0.1
+  max_tokens: 8192
+
+  # Per-agent model — cheap fast model for simple agents, powerful for complex ones
+  agent_models:
+    analyst:         llama-3.1-8b-instant      # simple: summarise user request
+    product_manager: llama-3.1-8b-instant      # simple: write spec from brief
+    architect:       llama-3.3-70b-versatile   # complex: system design decisions
+    designer:        llama-3.1-8b-instant      # simple: UI design system spec
+    scrum_master:    llama-3.1-8b-instant      # simple: format stories
+    developer:       llama-3.3-70b-versatile   # complex: generate full code
+    code_reviewer:   llama-3.1-8b-instant      # simple: review code quality
+    qa_engineer:     llama-3.1-8b-instant      # simple: review and verdict
+
+  # Per-model max_tokens — 8b has 6000 TPM so keep output small
+  model_max_tokens:
+    llama-3.3-70b-versatile: 8192
+    llama-3.1-8b-instant:    1800
+
+outputs:
+  documents:
+    - project-brief.md
+    - functional-spec.md
+    - solution-design.md
+    - user-stories.md
+    - test-plan.md
+  app: apps/{slug}.py
+  save_dir: output/{slug}/
+
+templates:
+  functional_spec: templates/functional-spec.md
+  solution_design: templates/solution-design.md

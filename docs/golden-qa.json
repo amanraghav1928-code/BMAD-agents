@@ -1,0 +1,225 @@
+{
+  "metadata": {
+    "description": "Golden Q&A evaluation set for AIKA — AI-Powered API Knowledge Assistant",
+    "version": "1.0",
+    "created": "2025-05-22",
+    "total_pairs": 30,
+    "evaluation_target": {
+      "mrr_at_5": 0.75,
+      "hit_at_3": 0.85,
+      "faithfulness_min": 0.80
+    }
+  },
+  "pairs": [
+    {
+      "id": "qa-001",
+      "question": "What HTTP method and path do I use to create a new product in the Product Catalogue API?",
+      "expected_answer": "Use POST /products with a JSON body containing the required fields: sku, name, price, and category_id. Authentication via Bearer token is required.",
+      "source_doc": "product-catalogue-api-v2.yaml",
+      "category": "endpoint_lookup"
+    },
+    {
+      "id": "qa-002",
+      "question": "What are the required fields when creating a product?",
+      "expected_answer": "The required fields are: sku (string), name (string), price (number, minimum 0), and category_id (UUID). Optional fields include description, compare_at_price, currency, and tags.",
+      "source_doc": "product-catalogue-api-v2.yaml",
+      "category": "schema"
+    },
+    {
+      "id": "qa-003",
+      "question": "How do I adjust the stock quantity of a product?",
+      "expected_answer": "Send a PATCH request to /products/{productId}/inventory with a JSON body containing 'delta' (positive to add stock, negative to remove) and 'reason' (one of: purchase_order, sale, return, damage, audit_correction). Bearer auth is required.",
+      "source_doc": "product-catalogue-api-v2.yaml",
+      "category": "endpoint_lookup"
+    },
+    {
+      "id": "qa-004",
+      "question": "What pagination parameters does the product list endpoint support?",
+      "expected_answer": "The GET /products endpoint supports: page (integer, default 1), limit (integer, default 20, maximum 100), category_id (filter by category UUID), and in_stock (boolean filter).",
+      "source_doc": "product-catalogue-api-v2.yaml",
+      "category": "parameters"
+    },
+    {
+      "id": "qa-005",
+      "question": "What does a 409 response mean when creating a product?",
+      "expected_answer": "A 409 Conflict response on POST /products means that a product with the same SKU already exists in the catalogue.",
+      "source_doc": "product-catalogue-api-v2.yaml",
+      "category": "error_handling"
+    },
+    {
+      "id": "qa-006",
+      "question": "How do I place an order after adding items to the cart?",
+      "expected_answer": "First create a cart with POST /cart, then add items via POST /cart/{cartId}/items. To place the order, send POST /orders with cart_id, shipping_address, billing_address, and payment_method_id. Bearer auth is required.",
+      "source_doc": "order-management-api-v1.yaml",
+      "category": "workflow"
+    },
+    {
+      "id": "qa-007",
+      "question": "What order statuses are possible in the Order Management API?",
+      "expected_answer": "An order can be in one of these statuses: pending, confirmed, processing, shipped, delivered, cancelled, or returned.",
+      "source_doc": "order-management-api-v1.yaml",
+      "category": "schema"
+    },
+    {
+      "id": "qa-008",
+      "question": "Can I cancel an order that has already been shipped?",
+      "expected_answer": "No. Attempting to cancel a shipped order returns a 422 Unprocessable Entity response indicating the order cannot be cancelled in its current state.",
+      "source_doc": "order-management-api-v1.yaml",
+      "category": "business_rules"
+    },
+    {
+      "id": "qa-009",
+      "question": "What reasons are valid when initiating a return?",
+      "expected_answer": "Valid return reasons are: defective, wrong_item, changed_mind, damaged_in_shipping, or other.",
+      "source_doc": "order-management-api-v1.yaml",
+      "category": "schema"
+    },
+    {
+      "id": "qa-010",
+      "question": "What fields are included in the Order object response?",
+      "expected_answer": "The Order object includes: id (UUID), order_number, customer_id, status, items (array of OrderItem), shipping_address, billing_address, payment_status, subtotal, shipping_cost, tax, total, currency, notes, placed_at, updated_at, and estimated_delivery.",
+      "source_doc": "order-management-api-v1.yaml",
+      "category": "schema"
+    },
+    {
+      "id": "qa-011",
+      "question": "What Kafka topic is published when an order is shipped?",
+      "expected_answer": "When an order is shipped, the order/shipped channel is published with an OrderShippedEvent payload containing event_id, occurred_at, order_id, customer_id, customer_email, tracking_number, carrier, tracking_url, and estimated_delivery.",
+      "source_doc": "notification-api-asyncapi.yaml",
+      "category": "events"
+    },
+    {
+      "id": "qa-012",
+      "question": "What notification channels does the Notification API support?",
+      "expected_answer": "The Notification API supports four delivery channels: email, SMS, push notifications, and in-app alerts. These are specified in the notification_channels field of event payloads.",
+      "source_doc": "notification-api-asyncapi.yaml",
+      "category": "features"
+    },
+    {
+      "id": "qa-013",
+      "question": "What events trigger notifications to customers?",
+      "expected_answer": "Customer notifications are triggered by: order/placed, order/status-changed, order/shipped, order/delivered, order/cancelled, user/registered, and user/password-reset events.",
+      "source_doc": "notification-api-asyncapi.yaml",
+      "category": "events"
+    },
+    {
+      "id": "qa-014",
+      "question": "What information is included in a password reset event?",
+      "expected_answer": "The PasswordResetPayload includes: event_id, occurred_at, user_id, email, reset_token, reset_url (URI), and expires_at (datetime).",
+      "source_doc": "notification-api-asyncapi.yaml",
+      "category": "schema"
+    },
+    {
+      "id": "qa-015",
+      "question": "Why was ChromaDB chosen as the vector database for AIKA?",
+      "expected_answer": "ChromaDB was chosen because it runs locally with zero external dependencies (pip install chromadb), has SQLite-backed persistence with HNSW index, supports metadata filtering, is Apache 2.0 licensed, and provides an easy migration path to Chroma cloud. It best fits the 6-week POC scale with no operational overhead.",
+      "source_doc": "adr-001-vector-db-choice.md",
+      "category": "architecture_decision"
+    },
+    {
+      "id": "qa-016",
+      "question": "What are the limitations of ChromaDB that would trigger migration to another solution?",
+      "expected_answer": "Migration from ChromaDB should be triggered when: corpus exceeds 500K vectors, P99 retrieval latency exceeds 200ms, or multi-region deployment is required. The recommended alternatives are Weaviate or Pinecone.",
+      "source_doc": "adr-001-vector-db-choice.md",
+      "category": "architecture_decision"
+    },
+    {
+      "id": "qa-017",
+      "question": "Why was Pinecone not chosen despite its performance advantages?",
+      "expected_answer": "Pinecone was rejected because it requires internet access from developer machines (ruled out offline dev), has per-query pricing, and data would leave the organisation boundary requiring a DLP review. These were blocking concerns for the POC.",
+      "source_doc": "adr-001-vector-db-choice.md",
+      "category": "architecture_decision"
+    },
+    {
+      "id": "qa-018",
+      "question": "What embedding model does AIKA use and why?",
+      "expected_answer": "AIKA uses sentence-transformers/all-MiniLM-L6-v2 (384 dimensions, 22MB). It was chosen because it runs entirely locally with no API key required, has ~5ms CPU inference latency, is Apache 2.0 licensed, and scored MRR@5 of 0.81 on the golden Q&A set.",
+      "source_doc": "adr-002-embedding-model.md",
+      "category": "architecture_decision"
+    },
+    {
+      "id": "qa-019",
+      "question": "What chunking strategy is recommended for the MiniLM embedding model?",
+      "expected_answer": "The recommended chunking strategy is 500 characters per chunk with 50 characters overlap. This fits within MiniLM's 256-token context window (500 chars ≈ 100-120 tokens).",
+      "source_doc": "adr-002-embedding-model.md",
+      "category": "implementation"
+    },
+    {
+      "id": "qa-020",
+      "question": "What MRR@5 score did all-MiniLM-L6-v2 achieve on the golden Q&A evaluation set?",
+      "expected_answer": "all-MiniLM-L6-v2 achieved MRR@5 of 0.81, Hit@1 of 0.70, and Hit@3 of 0.87 on the 30-pair golden Q&A set. The target minimum is MRR@5 ≥ 0.75.",
+      "source_doc": "adr-002-embedding-model.md",
+      "category": "evaluation"
+    },
+    {
+      "id": "qa-021",
+      "question": "How do I restart the API gateway if it is returning 5xx errors?",
+      "expected_answer": "Check which upstream is failing by tailing Kong proxy logs, then identify if a pod is OOMKilled (kubectl rollout restart), if there is a connection pool exhaustion (restart upstream), or if a bad deploy caused the issue (kubectl rollout undo). You can also rollback Kong itself with helm rollback api-gateway.",
+      "source_doc": "runbook-api-gateway.md",
+      "category": "operations"
+    },
+    {
+      "id": "qa-022",
+      "question": "What are the rate limits for Free tier API consumers?",
+      "expected_answer": "Free tier consumers are limited to 60 requests per minute, 1,000 requests per day, with a burst of 100 requests.",
+      "source_doc": "runbook-api-gateway.md",
+      "category": "configuration"
+    },
+    {
+      "id": "qa-023",
+      "question": "How do I force a JWKS cache refresh on the API Gateway?",
+      "expected_answer": "Send a POST request to https://api.acmecorp.com/admin/jwks/refresh with the ops Bearer token. This forces Kong to re-fetch the JWKS from the auth service at https://auth.acmecorp.com/.well-known/jwks.json.",
+      "source_doc": "runbook-api-gateway.md",
+      "category": "operations"
+    },
+    {
+      "id": "qa-024",
+      "question": "What is the standard canary deployment process for the API gateway?",
+      "expected_answer": "Deploy with helm upgrade using canary.yaml config setting canary weight to 10% (stable 100%). Monitor error rates for 30 minutes. If stable, promote to 100% by upgrading with the new image tag and no canary config. If unstable, set canary.weight to 0 and re-apply.",
+      "source_doc": "runbook-api-gateway.md",
+      "category": "deployment"
+    },
+    {
+      "id": "qa-025",
+      "question": "What is the architecture of the AIKA service in the e-commerce platform?",
+      "expected_answer": "AIKA uses FastAPI (Python 3.12), ChromaDB for vector storage, sentence-transformers/all-MiniLM-L6-v2 for embeddings, Groq llama-3.3-70b-versatile as the LLM, and Langfuse for observability. It exposes 7 REST endpoints and runs via docker-compose with a persistent Chroma volume.",
+      "source_doc": "solution-design-ecommerce.md",
+      "category": "architecture"
+    },
+    {
+      "id": "qa-026",
+      "question": "What Kafka topics does the Order Management Service publish to?",
+      "expected_answer": "The Order Management Service publishes to: order.placed, order.status_changed, order.shipped, order.delivered, and order.cancelled.",
+      "source_doc": "solution-design-ecommerce.md",
+      "category": "events"
+    },
+    {
+      "id": "qa-027",
+      "question": "What is the P99 latency target for AIKA queries?",
+      "expected_answer": "The P99 latency target for AIKA queries is under 2 seconds, measured via the Langfuse dashboard.",
+      "source_doc": "solution-design-ecommerce.md",
+      "category": "nfr"
+    },
+    {
+      "id": "qa-028",
+      "question": "Which environment variable stores the AIKA Bearer token for API authentication?",
+      "expected_answer": "The AIKA API Bearer token is stored in the AIKA_API_KEY environment variable.",
+      "source_doc": "solution-design-ecommerce.md",
+      "category": "configuration"
+    },
+    {
+      "id": "qa-029",
+      "question": "What is the inventory reason code to use when stock is adjusted due to a customer return?",
+      "expected_answer": "When adjusting inventory due to a customer return, use reason code 'return'. Other valid reason codes are: purchase_order, sale, damage, and audit_correction.",
+      "source_doc": "product-catalogue-api-v2.yaml",
+      "category": "business_rules"
+    },
+    {
+      "id": "qa-030",
+      "question": "What happens when a low-stock event is published and which systems consume it?",
+      "expected_answer": "When a product's stock falls below its threshold, the inventory/low-stock Kafka channel receives a LowStockEvent payload with product_id, sku, product_name, current_quantity, threshold, and warehouse_id. The Notification Service and Analytics Service consume this event.",
+      "source_doc": "notification-api-asyncapi.yaml",
+      "category": "events"
+    }
+  ]
+}

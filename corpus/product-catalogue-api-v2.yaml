@@ -1,0 +1,385 @@
+openapi: "3.0.3"
+info:
+  title: Product Catalogue API
+  version: "2.0.0"
+  description: >
+    REST API for managing product listings, inventory, pricing, and categories
+    in the e-commerce platform. Supports bulk operations and real-time stock updates.
+  contact:
+    name: Platform Engineering
+    email: platform@acmecorp.com
+  license:
+    name: Internal Use Only
+
+servers:
+  - url: https://api.acmecorp.com/catalogue/v2
+    description: Production
+  - url: https://api-staging.acmecorp.com/catalogue/v2
+    description: Staging
+
+tags:
+  - name: products
+    description: Product CRUD operations
+  - name: categories
+    description: Category management
+  - name: inventory
+    description: Stock and availability
+
+paths:
+  /products:
+    get:
+      tags: [products]
+      summary: List all products
+      operationId: listProducts
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, maximum: 100 }
+        - name: category_id
+          in: query
+          schema: { type: string }
+        - name: in_stock
+          in: query
+          schema: { type: boolean }
+      responses:
+        "200":
+          description: Paginated product list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [products]
+      summary: Create a new product
+      operationId: createProduct
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProductRequest"
+      responses:
+        "201":
+          description: Product created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          description: Product SKU already exists
+
+  /products/{productId}:
+    get:
+      tags: [products]
+      summary: Get product by ID
+      operationId: getProduct
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Product details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [products]
+      summary: Update product
+      operationId: updateProduct
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProductRequest"
+      responses:
+        "200":
+          description: Updated product
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+    delete:
+      tags: [products]
+      summary: Soft-delete product
+      operationId: deleteProduct
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204":
+          description: Product deleted
+
+  /products/{productId}/inventory:
+    get:
+      tags: [inventory]
+      summary: Get stock levels for a product
+      operationId: getInventory
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Inventory info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Inventory"
+    patch:
+      tags: [inventory]
+      summary: Adjust stock quantity
+      operationId: adjustInventory
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InventoryAdjustment"
+      responses:
+        "200":
+          description: Updated inventory
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Inventory"
+
+  /categories:
+    get:
+      tags: [categories]
+      summary: List categories
+      operationId: listCategories
+      responses:
+        "200":
+          description: Category tree
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Category"
+    post:
+      tags: [categories]
+      summary: Create category
+      operationId: createCategory
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCategoryRequest"
+      responses:
+        "201":
+          description: Category created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    BadRequest:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Missing or invalid authentication
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  schemas:
+    Product:
+      type: object
+      required: [id, sku, name, price, category_id, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        sku:
+          type: string
+          example: "PROD-001-BLK"
+        name:
+          type: string
+          example: "Wireless Noise-Cancelling Headphones"
+        description:
+          type: string
+        price:
+          type: number
+          format: float
+          example: 299.99
+        compare_at_price:
+          type: number
+          format: float
+        currency:
+          type: string
+          default: "USD"
+        category_id:
+          type: string
+          format: uuid
+        tags:
+          type: array
+          items: { type: string }
+        images:
+          type: array
+          items:
+            type: object
+            properties:
+              url: { type: string, format: uri }
+              alt: { type: string }
+        is_active:
+          type: boolean
+          default: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateProductRequest:
+      type: object
+      required: [sku, name, price, category_id]
+      properties:
+        sku: { type: string }
+        name: { type: string }
+        description: { type: string }
+        price: { type: number, format: float, minimum: 0 }
+        compare_at_price: { type: number, format: float }
+        currency: { type: string, default: "USD" }
+        category_id: { type: string, format: uuid }
+        tags:
+          type: array
+          items: { type: string }
+
+    UpdateProductRequest:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: string }
+        price: { type: number, format: float, minimum: 0 }
+        compare_at_price: { type: number, format: float }
+        tags:
+          type: array
+          items: { type: string }
+        is_active: { type: boolean }
+
+    ProductListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    Inventory:
+      type: object
+      properties:
+        product_id: { type: string, format: uuid }
+        quantity_available: { type: integer, minimum: 0 }
+        quantity_reserved: { type: integer, minimum: 0 }
+        warehouse_id: { type: string }
+        low_stock_threshold: { type: integer, default: 10 }
+        last_updated: { type: string, format: date-time }
+
+    InventoryAdjustment:
+      type: object
+      required: [delta, reason]
+      properties:
+        delta:
+          type: integer
+          description: Positive to add stock, negative to remove
+        reason:
+          type: string
+          enum: [purchase_order, sale, return, damage, audit_correction]
+
+    Category:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        parent_id: { type: string, format: uuid, nullable: true }
+        children:
+          type: array
+          items:
+            $ref: "#/components/schemas/Category"
+
+    CreateCategoryRequest:
+      type: object
+      required: [name, slug]
+      properties:
+        name: { type: string }
+        slug: { type: string }
+        parent_id: { type: string, format: uuid, nullable: true }
+
+    Pagination:
+      type: object
+      properties:
+        page: { type: integer }
+        limit: { type: integer }
+        total: { type: integer }
+        total_pages: { type: integer }
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details: { type: object }

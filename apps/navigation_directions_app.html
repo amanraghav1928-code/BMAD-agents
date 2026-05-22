@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Navigation & Directions</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; background: #0f0f1a; color: #e0e0e0; height: 100vh; display: flex; flex-direction: column; }
+
+    /* ── Header ── */
+    .header {
+      background: rgba(255,255,255,0.04);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      padding: 14px 20px;
+      display: flex; align-items: center; gap: 12px;
+      z-index: 1000;
+    }
+    .logo { font-size: 1.2rem; font-weight: 700; background: linear-gradient(135deg,#6C63FF,#00E5FF); -webkit-background-clip:text; -webkit-text-fill-color:transparent; white-space:nowrap; }
+    .search-row { display: flex; gap: 10px; flex: 1; }
+    .search-box {
+      flex: 1; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px; padding: 10px 16px; color: #fff; font-size: 0.9rem; outline: none;
+      transition: border 0.2s;
+    }
+    .search-box::placeholder { color: #888; }
+    .search-box:focus { border-color: #6C63FF; }
+    .btn {
+      padding: 10px 20px; border-radius: 12px; border: none; cursor: pointer;
+      font-weight: 600; font-size: 0.85rem; transition: all 0.2s;
+    }
+    .btn-primary { background: linear-gradient(135deg,#6C63FF,#00E5FF); color: #fff; }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(108,99,255,0.4); }
+    .btn-locate { background: rgba(0,229,255,0.15); color: #00E5FF; border: 1px solid rgba(0,229,255,0.3); }
+    .btn-locate:hover { background: rgba(0,229,255,0.25); }
+    .btn-clear { background: rgba(255,82,82,0.15); color: #FF5252; border: 1px solid rgba(255,82,82,0.3); }
+    .btn-clear:hover { background: rgba(255,82,82,0.25); }
+
+    /* ── Main layout ── */
+    .main { display: flex; flex: 1; overflow: hidden; }
+    #map { flex: 1; }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 320px; background: rgba(255,255,255,0.03);
+      border-left: 1px solid rgba(255,255,255,0.07);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+
+    /* ── Route Summary ── */
+    .route-summary {
+      padding: 16px; border-bottom: 1px solid rgba(255,255,255,0.07);
+      display: none;
+    }
+    .route-summary.visible { display: block; }
+    .summary-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .summary-card {
+      background: rgba(255,255,255,0.05); border-radius: 12px;
+      padding: 12px; border: 1px solid rgba(255,255,255,0.08); text-align: center;
+    }
+    .summary-card .value { font-size: 1.3rem; font-weight: 700; color: #6C63FF; }
+    .summary-card .label { font-size: 0.72rem; color: #888; margin-top: 2px; }
+
+    /* ── Steps ── */
+    .steps-header { padding: 14px 16px 8px; font-size: 0.8rem; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+    .steps-list { flex: 1; overflow-y: auto; padding: 0 16px 16px; }
+    .step {
+      display: flex; gap: 10px; padding: 10px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .step:last-child { border-bottom: none; }
+    .step-icon {
+      width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.9rem; background: rgba(108,99,255,0.15);
+      border: 1px solid rgba(108,99,255,0.3);
+    }
+    .step-text { font-size: 0.82rem; color: #ccc; line-height: 1.4; padding-top: 6px; }
+    .step-dist { font-size: 0.72rem; color: #666; margin-top: 2px; }
+
+    /* ── Empty state ── */
+    .empty-state {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; padding: 30px; text-align: center;
+    }
+    .empty-icon { font-size: 3rem; margin-bottom: 12px; }
+    .empty-title { font-size: 1rem; font-weight: 600; color: #ccc; margin-bottom: 6px; }
+    .empty-sub { font-size: 0.8rem; color: #666; line-height: 1.5; }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: rgba(30,30,50,0.95); border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px; padding: 12px 20px; font-size: 0.85rem;
+      backdrop-filter: blur(10px); z-index: 9999; display: none;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+    }
+    .toast.show { display: block; animation: fadeInUp 0.3s ease; }
+    .toast.error { border-color: rgba(255,82,82,0.4); color: #FF5252; }
+    .toast.success { border-color: rgba(0,230,118,0.4); color: #00E676; }
+    .toast.info { border-color: rgba(108,99,255,0.4); color: #a89fff; }
+
+    @keyframes fadeInUp { from { opacity:0; transform: translateX(-50%) translateY(10px); } to { opacity:1; transform: translateX(-50%) translateY(0); } }
+
+    /* ── Leaflet dark override ── */
+    .leaflet-tile { filter: brightness(0.7) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7); }
+    .leaflet-container { background: #0f0f1a; }
+    .leaflet-popup-content-wrapper { background: #1a1a2e; color: #e0e0e0; border: 1px solid rgba(108,99,255,0.3); border-radius: 12px; }
+    .leaflet-popup-tip { background: #1a1a2e; }
+
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">🗺️ NavAI</div>
+  <div class="search-row">
+    <input class="search-box" id="destInput" placeholder="Enter destination (e.g. Connaught Place, Delhi)" />
+    <button class="btn btn-primary" onclick="searchRoute()">Go</button>
+    <button class="btn btn-locate" onclick="locateMe()" title="Use my location">📍</button>
+    <button class="btn btn-clear" onclick="clearRoute()" title="Clear">✕</button>
+  </div>
+</div>
+
+<div class="main">
+  <div id="map"></div>
+  <div class="sidebar" id="sidebar">
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">🧭</div>
+      <div class="empty-title">Ready to navigate</div>
+      <div class="empty-sub">Click 📍 to detect your location, then type a destination and press Go</div>
+    </div>
+    <div class="route-summary" id="routeSummary">
+      <div class="summary-cards">
+        <div class="summary-card"><div class="value" id="distVal">—</div><div class="label">Distance</div></div>
+        <div class="summary-card"><div class="value" id="timeVal">—</div><div class="label">Est. Time</div></div>
+      </div>
+    </div>
+    <div id="stepsContainer" style="display:none; flex:1; overflow:hidden; display:none; flex-direction:column;">
+      <div class="steps-header">Turn-by-turn directions</div>
+      <div class="steps-list" id="stepsList"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ── Map init ──────────────────────────────────────────────────────────────
+  const map = L.map('map', { zoomControl: true }).setView([20.5937, 78.9629], 5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors', maxZoom: 19
+  }).addTo(map);
+
+  let userMarker = null, destMarker = null, routeLayer = null;
+  let userCoords = null;
+
+  // Custom marker icons
+  const userIcon = L.divIcon({ html: '<div style="width:18px;height:18px;background:#6C63FF;border:3px solid white;border-radius:50%;box-shadow:0 0 10px rgba(108,99,255,0.8)"></div>', iconSize:[18,18], iconAnchor:[9,9], className:'' });
+  const destIcon = L.divIcon({ html: '<div style="width:18px;height:18px;background:#FF5252;border:3px solid white;border-radius:50%;box-shadow:0 0 10px rgba(255,82,82,0.8)"></div>', iconSize:[18,18], iconAnchor:[9,9], className:'' });
+
+  // ── Toast ────────────────────────────────────────────────────────────────
+  function showToast(msg, type='info', dur=3000) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = `toast show ${type}`;
+    setTimeout(() => t.className = 'toast', dur);
+  }
+
+  // ── Locate me ────────────────────────────────────────────────────────────
+  function locateMe() {
+    if (!navigator.geolocation) { showToast('Geolocation not supported', 'error'); return; }
+    showToast('📍 Detecting your location...', 'info', 5000);
+    navigator.geolocation.getCurrentPosition(pos => {
+      userCoords = [pos.coords.latitude, pos.coords.longitude];
+      if (userMarker) map.removeLayer(userMarker);
+      userMarker = L.marker(userCoords, {icon: userIcon}).addTo(map).bindPopup('📍 You are here').openPopup();
+      map.setView(userCoords, 13);
+      showToast('✅ Location detected!', 'success');
+    }, err => {
+      showToast('Could not get location. Please allow GPS access.', 'error');
+    });
+  }
+
+  // ── Search & route ────────────────────────────────────────────────────────
+  async function searchRoute() {
+    const dest = document.getElementById('destInput').value.trim();
+    if (!dest) { showToast('Please enter a destination', 'error'); return; }
+    if (!userCoords) { showToast('Click 📍 first to detect your location', 'error'); return; }
+
+    showToast('🔍 Finding destination...', 'info', 8000);
+
+    try {
+      // Geocode destination via Nominatim
+      const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(dest)}&format=json&limit=1`, {
+        headers: { 'Accept-Language': 'en' }
+      });
+      const geoData = await geoRes.json();
+      if (!geoData.length) { showToast('Destination not found. Try a more specific address.', 'error'); return; }
+
+      const destCoords = [parseFloat(geoData[0].lat), parseFloat(geoData[0].lon)];
+      const destName   = geoData[0].display_name.split(',').slice(0,2).join(',');
+
+      if (destMarker) map.removeLayer(destMarker);
+      destMarker = L.marker(destCoords, {icon: destIcon}).addTo(map).bindPopup(`📌 ${destName}`).openPopup();
+
+      showToast('🛣️ Calculating route...', 'info', 8000);
+
+      // Route via OSRM
+      const routeRes = await fetch(`https://router.project-osrm.org/route/v1/driving/${userCoords[1]},${userCoords[0]};${destCoords[1]},${destCoords[0]}?overview=full&geometries=geojson&steps=true`);
+      const routeData = await routeRes.json();
+
+      if (routeData.code !== 'Ok') { showToast('Could not calculate route', 'error'); return; }
+
+      const route = routeData.routes[0];
+      const distKm = (route.distance / 1000).toFixed(1);
+      const mins   = Math.round(route.duration / 60);
+      const hours  = Math.floor(mins / 60);
+      const timeStr = hours > 0 ? `${hours}h ${mins % 60}m` : `${mins} min`;
+
+      // Draw route
+      if (routeLayer) map.removeLayer(routeLayer);
+      routeLayer = L.geoJSON(route.geometry, {
+        style: { color: '#6C63FF', weight: 5, opacity: 0.85 }
+      }).addTo(map);
+
+      // Fit map to route
+      map.fitBounds(routeLayer.getBounds(), { padding: [40, 40] });
+
+      // Update summary
+      document.getElementById('distVal').textContent = `${distKm} km`;
+      document.getElementById('timeVal').textContent = timeStr;
+      document.getElementById('routeSummary').className = 'route-summary visible';
+      document.getElementById('emptyState').style.display = 'none';
+
+      // Build steps
+      const steps = route.legs[0].steps;
+      const icons = { turn: '↩️', 'turn-left': '⬅️', 'turn-right': '➡️', 'new name': '⬆️', depart: '🚦', arrive: '🏁', merge: '↗️', fork: '🍴', roundabout: '🔄', default: '⬆️' };
+      const stepsList = document.getElementById('stepsList');
+      stepsList.innerHTML = '';
+      steps.forEach((s, i) => {
+        const maneuver = s.maneuver?.type || 'default';
+        const icon = icons[maneuver] || icons.default;
+        const dist = s.distance > 1000 ? `${(s.distance/1000).toFixed(1)} km` : `${Math.round(s.distance)} m`;
+        const div = document.createElement('div');
+        div.className = 'step';
+        div.innerHTML = `
+          <div class="step-icon">${icon}</div>
+          <div>
+            <div class="step-text">${s.name || maneuver.replace(/-/g,' ')}</div>
+            <div class="step-dist">${dist}</div>
+          </div>`;
+        stepsList.appendChild(div);
+      });
+
+      const sc = document.getElementById('stepsContainer');
+      sc.style.display = 'flex';
+      sc.style.flexDirection = 'column';
+      sc.style.flex = '1';
+      sc.style.overflow = 'hidden';
+
+      showToast(`✅ Route found — ${distKm} km · ${timeStr}`, 'success', 4000);
+
+    } catch(e) {
+      showToast('Network error. Check your internet connection.', 'error');
+      console.error(e);
+    }
+  }
+
+  // ── Clear ─────────────────────────────────────────────────────────────────
+  function clearRoute() {
+    if (destMarker) { map.removeLayer(destMarker); destMarker = null; }
+    if (routeLayer) { map.removeLayer(routeLayer); routeLayer = null; }
+    document.getElementById('destInput').value = '';
+    document.getElementById('routeSummary').className = 'route-summary';
+    document.getElementById('emptyState').style.display = 'flex';
+    document.getElementById('stepsContainer').style.display = 'none';
+  }
+
+  // Enter key on input
+  document.getElementById('destInput').addEventListener('keydown', e => { if (e.key === 'Enter') searchRoute(); });
+
+  // Click on map to set destination
+  map.on('click', async function(e) {
+    const { lat, lng } = e.latlng;
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
+    const data = await res.json();
+    const name = data.display_name?.split(',').slice(0,3).join(',') || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    document.getElementById('destInput').value = name;
+    showToast(`📌 Destination set: ${name.split(',')[0]}`, 'info');
+  });
+</script>
+</body>
+</html>

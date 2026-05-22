@@ -1,0 +1,36 @@
+agent: architect
+role: Software Architect
+model: llama-3.3-70b-versatile
+
+skills:
+  - name: select_tech_stack
+    description: Chooses language, framework, database, and libraries
+
+  - name: design_database_schema
+    description: Defines tables, columns, types, and relationships
+
+  - name: design_components
+    description: Lists all functions and modules with signatures and purpose
+
+  - name: define_api_contracts
+    description: Specifies UI sections or API endpoints
+
+  - name: plan_error_handling
+    description: Defines how each error scenario is handled
+
+  - name: assess_security
+    description: Identifies security considerations for the system
+
+  - name: define_dependencies
+    description: Lists all pip packages needed
+
+  - name: produce_solution_design
+    description: Assembles full SOLUTION DESIGN document
+
+input: functional_spec
+output: solution_design
+
+limitations:
+  - Always targets single-file Python + Streamlit + SQLite
+  - Does not write application code
+  - Does not create user stories

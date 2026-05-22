@@ -1,0 +1,285 @@
+asyncapi: "2.6.0"
+info:
+  title: Notification API
+  version: "1.2.0"
+  description: >
+    Event-driven notification service for the ACME e-commerce platform.
+    Publishes domain events over Kafka and exposes a REST API for
+    managing notification preferences and delivery status.
+    Supports email, SMS, push notifications, and in-app alerts.
+  contact:
+    name: Notifications Team
+    email: notifications@acmecorp.com
+
+servers:
+  kafka-production:
+    url: kafka.acmecorp.com:9092
+    protocol: kafka
+    description: Production Kafka cluster
+  kafka-staging:
+    url: kafka-staging.acmecorp.com:9092
+    protocol: kafka
+    description: Staging Kafka cluster
+
+defaultContentType: application/json
+
+channels:
+  order/placed:
+    description: Fired when a customer places a new order
+    subscribe:
+      summary: Consume order placed events
+      operationId: onOrderPlaced
+      message:
+        $ref: "#/components/messages/OrderPlacedEvent"
+
+  order/status-changed:
+    description: Fired when an order transitions to a new status
+    subscribe:
+      summary: Consume order status change events
+      operationId: onOrderStatusChanged
+      message:
+        $ref: "#/components/messages/OrderStatusChangedEvent"
+
+  order/shipped:
+    description: Fired when a shipment label is created
+    subscribe:
+      summary: Consume shipment events
+      operationId: onOrderShipped
+      message:
+        $ref: "#/components/messages/OrderShippedEvent"
+
+  order/delivered:
+    description: Fired when delivery is confirmed
+    subscribe:
+      summary: Consume delivery confirmation events
+      operationId: onOrderDelivered
+      message:
+        $ref: "#/components/messages/OrderDeliveredEvent"
+
+  order/cancelled:
+    description: Fired when an order is cancelled
+    subscribe:
+      summary: Consume order cancellation events
+      operationId: onOrderCancelled
+      message:
+        $ref: "#/components/messages/OrderCancelledEvent"
+
+  user/registered:
+    description: Fired when a new user registers
+    subscribe:
+      summary: Consume user registration events
+      operationId: onUserRegistered
+      message:
+        $ref: "#/components/messages/UserRegisteredEvent"
+
+  user/password-reset:
+    description: Fired when a password reset is requested
+    subscribe:
+      summary: Consume password reset events
+      operationId: onPasswordReset
+      message:
+        $ref: "#/components/messages/PasswordResetEvent"
+
+  inventory/low-stock:
+    description: Fired when a product's stock falls below threshold
+    subscribe:
+      summary: Consume low-stock alert events
+      operationId: onLowStock
+      message:
+        $ref: "#/components/messages/LowStockEvent"
+
+  notification/delivery-status:
+    description: Published when a notification delivery succeeds or fails
+    publish:
+      summary: Notification delivery receipt
+      operationId: publishDeliveryStatus
+      message:
+        $ref: "#/components/messages/DeliveryStatusEvent"
+
+components:
+  messages:
+    OrderPlacedEvent:
+      name: OrderPlacedEvent
+      title: Order Placed
+      summary: Customer placed a new order
+      contentType: application/json
+      payload:
+        $ref: "#/components/schemas/OrderPlacedPayload"
+      headers:
+        type: object
+        properties:
+          correlation-id:
+            type: string
+            format: uuid
+          source-service:
+            type: string
+            example: order-management
+
+    OrderStatusChangedEvent:
+      name: OrderStatusChangedEvent
+      title: Order Status Changed
+      payload:
+        $ref: "#/components/schemas/OrderStatusChangedPayload"
+
+    OrderShippedEvent:
+      name: OrderShippedEvent
+      title: Order Shipped
+      payload:
+        $ref: "#/components/schemas/OrderShippedPayload"
+
+    OrderDeliveredEvent:
+      name: OrderDeliveredEvent
+      title: Order Delivered
+      payload:
+        $ref: "#/components/schemas/OrderDeliveredPayload"
+
+    OrderCancelledEvent:
+      name: OrderCancelledEvent
+      title: Order Cancelled
+      payload:
+        $ref: "#/components/schemas/OrderCancelledPayload"
+
+    UserRegisteredEvent:
+      name: UserRegisteredEvent
+      title: User Registered
+      payload:
+        $ref: "#/components/schemas/UserRegisteredPayload"
+
+    PasswordResetEvent:
+      name: PasswordResetEvent
+      title: Password Reset Requested
+      payload:
+        $ref: "#/components/schemas/PasswordResetPayload"
+
+    LowStockEvent:
+      name: LowStockEvent
+      title: Low Stock Alert
+      payload:
+        $ref: "#/components/schemas/LowStockPayload"
+
+    DeliveryStatusEvent:
+      name: DeliveryStatusEvent
+      title: Notification Delivery Status
+      payload:
+        $ref: "#/components/schemas/DeliveryStatusPayload"
+
+  schemas:
+    OrderPlacedPayload:
+      type: object
+      required: [event_id, occurred_at, order_id, customer_id, order_number, total, currency, items_count]
+      properties:
+        event_id: { type: string, format: uuid }
+        occurred_at: { type: string, format: date-time }
+        order_id: { type: string, format: uuid }
+        customer_id: { type: string, format: uuid }
+        customer_email: { type: string, format: email }
+        customer_name: { type: string }
+        order_number: { type: string, example: "ORD-2025-001234" }
+        total: { type: number, format: float }
+        currency: { type: string, default: "USD" }
+        items_count: { type: integer }
+        estimated_delivery: { type: string, format: date }
+        notification_channels:
+          type: array
+          items: { type: string, enum: [email, sms, push, in_app] }
+          default: [email, in_app]
+
+    OrderStatusChangedPayload:
+      type: object
+      required: [event_id, occurred_at, order_id, previous_status, new_status]
+      properties:
+        event_id: { type: string, format: uuid }
+        occurred_at: { type: string, format: date-time }
+        order_id: { type: string, format: uuid }
+        customer_id: { type: string, format: uuid }
+        customer_email: { type: string, format: email }
+        previous_status: { type: string }
+        new_status: { type: string }
+        reason: { type: string, nullable: true }
+
+    OrderShippedPayload:
+      type: object
+      required: [event_id, occurred_at, order_id, tracking_number, carrier]
+      properties:
+        event_id: { type: string, format: uuid }
+        occurred_at: { type: string, format: date-time }
+        order_id: { type: string, format: uuid }
+        customer_id: { type: string, format: uuid }
+        customer_email: { type: string, format: email }
+        tracking_number: { type: string }
+        carrier: { type: string, example: "FedEx" }
+        tracking_url: { type: string, format: uri }
+        estimated_delivery: { type: string, format: date }
+
+    OrderDeliveredPayload:
+      type: object
+      properties:
+        event_id: { type: string, format: uuid }
+        occurred_at: { type: string, format: date-time }
+        order_id: { type: string, format: uuid }
+        customer_id: { type: string, format: uuid }
+        customer_email: { type: string, format: email }
+        delivered_at: { type: string, format: date-time }
+        signature_required: { type: boolean, default: false }
+
+    OrderCancelledPayload:
+      type: object
+      properties:
+        event_id: { type: string, format: uuid }
+        occurred_at: { type: string, format: date-time }
+        order_id: { type: string, format: uuid }
+        customer_id: { type: string, format: uuid }
+        customer_email: { type: string, format: email }
+        cancellation_reason: { type: string }
+        refund_amount: { type: number, format: float, nullable: true }
+        refund_currency: { type: string }
+
+    UserRegisteredPayload:
+      type: object
+      required: [event_id, occurred_at, user_id, email]
+      properties:
+        event_id: { type: string, format: uuid }
+        occurred_at: { type: string, format: date-time }
+        user_id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        first_name: { type: string }
+        verification_token: { type: string }
+        verification_url: { type: string, format: uri }
+
+    PasswordResetPayload:
+      type: object
+      required: [event_id, occurred_at, user_id, email, reset_token]
+      properties:
+        event_id: { type: string, format: uuid }
+        occurred_at: { type: string, format: date-time }
+        user_id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        reset_token: { type: string }
+        reset_url: { type: string, format: uri }
+        expires_at: { type: string, format: date-time }
+
+    LowStockPayload:
+      type: object
+      required: [event_id, occurred_at, product_id, sku, current_quantity, threshold]
+      properties:
+        event_id: { type: string, format: uuid }
+        occurred_at: { type: string, format: date-time }
+        product_id: { type: string, format: uuid }
+        sku: { type: string }
+        product_name: { type: string }
+        current_quantity: { type: integer }
+        threshold: { type: integer }
+        warehouse_id: { type: string }
+
+    DeliveryStatusPayload:
+      type: object
+      properties:
+        event_id: { type: string, format: uuid }
+        occurred_at: { type: string, format: date-time }
+        notification_id: { type: string, format: uuid }
+        recipient: { type: string }
+        channel: { type: string, enum: [email, sms, push, in_app] }
+        status: { type: string, enum: [sent, delivered, failed, bounced] }
+        error_code: { type: string, nullable: true }
+        error_message: { type: string, nullable: true }
+        delivered_at: { type: string, format: date-time, nullable: true }

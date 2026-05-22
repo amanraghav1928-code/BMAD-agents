@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>App</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body style="margin:0;background:#0f0f1a;font-family:'Inter',sans-serif;">
+  <div id="root"></div>
+  <script type="text/babel">
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import Chart from 'chart.js/auto';
+import { Line, Bar } from 'react-chartjs-2';
+import 'chart.js/auto';
+import 'chartjs-plugin-datalabels';
+import { createChart } from 'lightweight-charts';
+import { Inter } from '@fontsource/inter';
+import './App.css';
+
+function App() {
+  const [stockTicker, setStockTicker] = useState('');
+  const [livePrice, setLivePrice] = useState(null);
+  const [candlestickData, setCandlestickData] = useState(null);
+  const [technicalIndicators, setTechnicalIndicators] = useState(null);
+  const [fundamentalData, setFundamentalData] = useState(null);
+  const [buyHoldSellSignal, setBuyHoldSellSignal] = useState(null);
+  const [newsHeadlines, setNewsHeadlines] = useState(null);
+  const [error, setError] = useState(null);
+
+  const handleStockTickerChange = (event) => {
+    setStockTicker(event.target.value);
+  };
+
+  const fetchLivePrice = async () => {
+    try {
+      const response = await axios.get(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${stockTicker}&apikey=demo`);
+      if (response.data['Global Quote']) {
+        setLivePrice(response.data['Global Quote']['05. price']);
+      } else {
+        setError('Failed to fetch live price');
+      }
+    } catch (error) {
+      setError('Failed to fetch live price');
+    }
+  };
+
+  const fetchCandlestickData = async () => {
+    try {
+      const response = await axios.get(`https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${stockTicker}&apikey=demo`);
+      if (response.data['Time Series (Daily)']) {
+        const data = Object.keys(response.data['Time Series (Daily)']).map((date) => {
+          return {
+            date,
+            open: response.data['Time Series (Daily)'][date]['1. open'],
+            high: response.data['Time Series (Daily)'][date]['2. high'],
+            low: response.data['Time Series (Daily)'][date]['3. low'],
+            close: response.data['Time Series (Daily)'][date]['4. close'],
+            volume: response.data['Time Series (Daily)'][date]['5. volume'],
+          };
+        });
+        setCandlestickData(data);
+      } else {
+        setError('Failed to fetch candlestick data');
+      }
+    } catch (error) {
+      setError('Failed to fetch candlestick data');
+    }
+  };
+
+  const fetchTechnicalIndicators = async () => {
+    try {
+      const response = await axios.get(`https://www.alphavantage.co/query?function=MACD&symbol=${stockTicker}&apikey=demo`);
+      if (response.data['Technical Analysis: MACD']) {
+        const macd = response.data['Technical Analysis: MACD'];
+        const rsiResponse = await axios.get(`https://www.alphavantage.co/query?function=RSI&symbol=${stockTicker}&apikey=demo`);
+        if (rsiResponse.data['Technical Analysis: RSI']) {
+          const rsi = rsiResponse.data['Technical Analysis: RSI'];
+          const ma20Response = await axios.get(`https://www.alphavantage.co/query?function=SMA&symbol=${stockTicker}&interval=daily&time_period=20&apikey=demo`);
+          if (ma20Response.data['Technical Analysis: SMA']) {
+            const ma20 = ma20Response.data['Technical Analysis: SMA'];
+            const ma50Response = await axios.get(`https://www.alphavantage.co/query?function=SMA&symbol=${stockTicker}&interval=daily&time_period=50&apikey=demo`);
+            if (ma50Response.data['Technical Analysis: SMA']) {
+              const ma50 = ma50Response.data['Technical Analysis: SMA'];
+              setTechnicalIndicators({
+                macd,
+                rsi,
+                ma20,
+                ma50,
+              });
+            } else {
+              setError('Failed to fetch MA50');
+            }
+          } else {
+            setError('Failed to fetch MA20');
+          }
+        } else {
+          setError('Failed to fetch RSI');
+        }
+      } else {
+        setError('Failed to fetch MACD');
+      }
+    } catch (error) {
+      setError('Failed to fetch technical indicators');
+    }
+  };
+
+  const fetchFundamentalData = async () => {
+    try {
+      const response = await axios.get(`https://www.alphavantage.co/query?function=OVERVIEW&symbol=${stockTicker}&apikey=demo`);
+      if (response.data) {
+        setFundamentalData(response.data);
+      } else {
+        setError('Failed to fetch fundamental data');
+      }
+    } catch (error) {
+      setError('Failed to fetch fundamental data');
+    }
+  };
+
+  const fetchBuyHoldSellSignal = async () => {
+    try {
+      const response = await axios.get(`https://www.alphavantage.co/query?function=MACD&symbol=${stockTicker}&apikey=demo`);
+      if (response.data['Technical Analysis: MACD']) {
+        const macd = response.data['Technical Analysis: MACD'];
+        if (macd['MACD'] > macd['Signal']) {
+          setBuyHoldSellSignal('Buy');
+        } else if (macd['MACD'] < macd['Signal']) {
+          setBuyHoldSellSignal('Sell');
+        } else {
+          setBuyHoldSellSignal('Hold');
+        }
+      } else {
+        setError('Failed to fetch buy/hold/sell signal');
+      }
+    } catch (error) {
+      setError('Failed to fetch buy/hold/sell signal');
+    }
+  };
+
+  const fetchNewsHeadlines = async () => {
+    try {
+      const response = await axios.get(`https://newsapi.org/v2/everything?q=${stockTicker}&apiKey=YOUR_NEWS_API_KEY`);
+      if (response.data.articles) {
+        setNewsHeadlines(response.data.articles.slice(0, 5));
+      } else {
+        setError('Failed to fetch news headlines');
+      }
+    } catch (error) {
+      setError('Failed to fetch news headlines');
+    }
+  };
+
+  useEffect(() => {
+    if (stockTicker) {
+      fetchLivePrice();
+      fetchCandlestickData();
+      fetchTechnicalIndicators();
+      fetchFundamentalData();
+      fetchBuyHoldSellSignal();
+      fetchNewsHeadlines();
+    }
+  }, [stockTicker]);
+
+  return (
+    <div className="app">
+      <h1>StockSphere</h1>
+      <input type="text" value={stockTicker} onChange={handleStockTickerChange} placeholder="Enter stock ticker" />
+      {error ? (
+        <p style={{ color: 'red' }}>{error}</p>
+      ) : (
+        <div>
+          {livePrice ? (
+            <p>Live Price: {livePrice}</p>
+          ) : (
+            <p>Loading live price...</p>
+          )}
+          {candlestickData ? (
+            <Line
+              data={{
+                labels: candlestickData.map((data) => data.date),
+                datasets: [
+                  {
+                    label: 'Close',
+                    data: candlestickData.map((data) => data.close),
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1,
+                  },
+                ],
+              }}
+              options={{
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                  },
+                },
+              }}
+            />
+          ) : (
+            <p>Loading candlestick data...</p>
+          )}
+          {technicalIndicators ? (
+            <div>
+              <p>MACD: {technicalIndicators.macd['MACD']}</p>
+              <p>RSI: {technicalIndicators.rsi['RSI']}</p>
+              <p>MA20: {technicalIndicators.ma20['SMA']}</p>
+              <p>MA50: {technicalIndicators.ma50['SMA']}</p>
+            </div>
+          ) : (
+            <p>Loading technical indicators...</p>
+          )}
+          {fundamentalData ? (
+            <div>
+              <p>Company Name: {fundamentalData['Name']}</p>
+              <p>Industry: {fundamentalData['Industry']}</p>
+              <p>Sector: {fundamentalData['Sector']}</p>
+            </div>
+          ) : (
+            <p>Loading fundamental data...</p>
+          )}
+          {buyHoldSellSignal ? (
+            <p>Buy/Hold/Sell Signal: {buyHoldSellSignal}</p>
+          ) : (
+            <p>Loading buy/hold/sell signal...</p>
+          )}
+          {newsHeadlines ? (
+            <div>
+              {newsHeadlines.map((headline) => (
+                <p key={headline.title}>{headline.title}</p>
+              ))}
+            </div>
+          ) : (
+            <p>Loading news headlines...</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default App;
+  </script>
+</body>
+</html>

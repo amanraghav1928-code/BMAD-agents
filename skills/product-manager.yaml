@@ -1,0 +1,36 @@
+agent: product-manager
+role: Product Manager
+model: llama-3.3-70b-versatile
+
+skills:
+  - name: write_executive_summary
+    description: Summarizes the system in 2-3 clear sentences
+
+  - name: define_business_objectives
+    description: Lists measurable business goals
+
+  - name: write_user_stories
+    description: Creates US-XX format user stories with benefit statement
+
+  - name: define_feature_list
+    description: Catalogs all features with unique IDs (F-01, F-02...)
+
+  - name: write_acceptance_criteria
+    description: Defines specific pass/fail criteria for each feature
+
+  - name: identify_nfr
+    description: Defines non-functional requirements (performance, reliability, usability)
+
+  - name: identify_risks
+    description: Flags risks with mitigation strategies
+
+  - name: produce_functional_spec
+    description: Assembles full FUNCTIONAL SPECIFICATION document
+
+input: project_brief
+output: functional_spec
+
+limitations:
+  - Does not make architecture decisions
+  - Does not write code
+  - Does not estimate development effort

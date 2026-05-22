@@ -1,0 +1,26 @@
+# Secrets — never commit these
+.env
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# Vector DB (local data — not needed on server)
+chroma_db/
+data/
+
+# Output & memory (runtime files)
+output/
+memory/
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/

@@ -1,0 +1,451 @@
+openapi: "3.0.3"
+info:
+  title: Order Management API
+  version: "1.0.0"
+  description: >
+    Handles the full order lifecycle: cart → checkout → payment → fulfilment → returns.
+    Integrates with the Product Catalogue API for inventory reservation and the
+    Notification API for order status updates.
+  contact:
+    name: Commerce Engineering
+    email: commerce@acmecorp.com
+
+servers:
+  - url: https://api.acmecorp.com/orders/v1
+    description: Production
+  - url: https://api-staging.acmecorp.com/orders/v1
+    description: Staging
+
+tags:
+  - name: orders
+    description: Order lifecycle management
+  - name: cart
+    description: Shopping cart operations
+  - name: payments
+    description: Payment processing
+  - name: returns
+    description: Returns and refunds
+
+paths:
+  /cart:
+    post:
+      tags: [cart]
+      summary: Create a new cart
+      operationId: createCart
+      responses:
+        "201":
+          description: Empty cart created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cart"
+
+  /cart/{cartId}/items:
+    post:
+      tags: [cart]
+      summary: Add item to cart
+      operationId: addCartItem
+      parameters:
+        - name: cartId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddCartItemRequest"
+      responses:
+        "200":
+          description: Updated cart
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cart"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          description: Product not found or out of stock
+
+    delete:
+      tags: [cart]
+      summary: Remove item from cart
+      operationId: removeCartItem
+      parameters:
+        - name: cartId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [product_id]
+              properties:
+                product_id: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Updated cart
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cart"
+
+  /orders:
+    post:
+      tags: [orders]
+      summary: Place order from cart (checkout)
+      operationId: placeOrder
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlaceOrderRequest"
+      responses:
+        "201":
+          description: Order placed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "402":
+          description: Payment required or failed
+        "409":
+          description: One or more items no longer available
+
+    get:
+      tags: [orders]
+      summary: List orders for current user
+      operationId: listOrders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, confirmed, processing, shipped, delivered, cancelled, returned]
+        - name: from_date
+          in: query
+          schema: { type: string, format: date }
+        - name: to_date
+          in: query
+          schema: { type: string, format: date }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        "200":
+          description: Order list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderListResponse"
+
+  /orders/{orderId}:
+    get:
+      tags: [orders]
+      summary: Get order details
+      operationId: getOrder
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Order details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /orders/{orderId}/cancel:
+    post:
+      tags: [orders]
+      summary: Cancel an order
+      operationId: cancelOrder
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string }
+      responses:
+        "200":
+          description: Order cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "422":
+          description: Order cannot be cancelled (already shipped)
+
+  /orders/{orderId}/payment:
+    post:
+      tags: [payments]
+      summary: Process payment for order
+      operationId: processPayment
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentRequest"
+      responses:
+        "200":
+          description: Payment result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentResult"
+        "402":
+          description: Payment declined
+
+  /orders/{orderId}/returns:
+    post:
+      tags: [returns]
+      summary: Initiate a return
+      operationId: initiateReturn
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReturnRequest"
+      responses:
+        "201":
+          description: Return initiated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Return"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Cart:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CartItem"
+        subtotal: { type: number, format: float }
+        currency: { type: string, default: "USD" }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    CartItem:
+      type: object
+      properties:
+        product_id: { type: string, format: uuid }
+        product_name: { type: string }
+        sku: { type: string }
+        quantity: { type: integer, minimum: 1 }
+        unit_price: { type: number, format: float }
+        line_total: { type: number, format: float }
+
+    AddCartItemRequest:
+      type: object
+      required: [product_id, quantity]
+      properties:
+        product_id: { type: string, format: uuid }
+        quantity: { type: integer, minimum: 1, default: 1 }
+
+    Order:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        order_number: { type: string, example: "ORD-2025-001234" }
+        customer_id: { type: string, format: uuid }
+        status:
+          type: string
+          enum: [pending, confirmed, processing, shipped, delivered, cancelled, returned]
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItem"
+        shipping_address:
+          $ref: "#/components/schemas/Address"
+        billing_address:
+          $ref: "#/components/schemas/Address"
+        payment_status:
+          type: string
+          enum: [pending, paid, failed, refunded]
+        subtotal: { type: number, format: float }
+        shipping_cost: { type: number, format: float }
+        tax: { type: number, format: float }
+        total: { type: number, format: float }
+        currency: { type: string, default: "USD" }
+        notes: { type: string }
+        placed_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        estimated_delivery: { type: string, format: date }
+
+    OrderItem:
+      type: object
+      properties:
+        product_id: { type: string, format: uuid }
+        product_name: { type: string }
+        sku: { type: string }
+        quantity: { type: integer }
+        unit_price: { type: number, format: float }
+        line_total: { type: number, format: float }
+
+    PlaceOrderRequest:
+      type: object
+      required: [cart_id, shipping_address, billing_address, payment_method_id]
+      properties:
+        cart_id: { type: string, format: uuid }
+        shipping_address:
+          $ref: "#/components/schemas/Address"
+        billing_address:
+          $ref: "#/components/schemas/Address"
+        payment_method_id: { type: string }
+        notes: { type: string }
+        coupon_code: { type: string }
+
+    PaymentRequest:
+      type: object
+      required: [payment_method_id, amount]
+      properties:
+        payment_method_id: { type: string }
+        amount: { type: number, format: float }
+        currency: { type: string, default: "USD" }
+        capture_immediately: { type: boolean, default: true }
+
+    PaymentResult:
+      type: object
+      properties:
+        transaction_id: { type: string }
+        status:
+          type: string
+          enum: [success, failed, pending]
+        amount: { type: number, format: float }
+        currency: { type: string }
+        processed_at: { type: string, format: date-time }
+        error_message: { type: string, nullable: true }
+
+    ReturnRequest:
+      type: object
+      required: [items, reason]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [product_id, quantity]
+            properties:
+              product_id: { type: string, format: uuid }
+              quantity: { type: integer, minimum: 1 }
+        reason:
+          type: string
+          enum: [defective, wrong_item, changed_mind, damaged_in_shipping, other]
+        notes: { type: string }
+
+    Return:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        order_id: { type: string, format: uuid }
+        status:
+          type: string
+          enum: [requested, approved, rejected, received, refunded]
+        refund_amount: { type: number, format: float }
+        created_at: { type: string, format: date-time }
+        resolved_at: { type: string, format: date-time, nullable: true }
+
+    OrderListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Order"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    Address:
+      type: object
+      required: [line1, city, country, postal_code]
+      properties:
+        line1: { type: string }
+        line2: { type: string, nullable: true }
+        city: { type: string }
+        state: { type: string }
+        country: { type: string, example: "US" }
+        postal_code: { type: string }
+
+    Pagination:
+      type: object
+      properties:
+        page: { type: integer }
+        limit: { type: integer }
+        total: { type: integer }
+        total_pages: { type: integer }
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details: { type: object }

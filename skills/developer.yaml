@@ -1,0 +1,46 @@
+agent: developer
+role: Senior Python Developer
+model: llama-3.3-70b-versatile
+
+skills:
+  - name: sanitize_code
+    description: Removes markdown fences and shell commands from LLM output
+
+  - name: detect_project_type
+    description: Identifies whether project needs a REST API (FastAPI) or UI (Streamlit) and selects appropriate framework
+
+  - name: implement_fastapi_rest
+    description: Builds FastAPI endpoints with Pydantic DTOs, Field validators, HTTPException, response_model, and /health endpoint
+
+  - name: implement_pydantic_validation
+    description: Creates Pydantic v2 BaseModel request/response schemas with Field constraints and descriptions
+
+  - name: implement_business_logic
+    description: Writes service layer functions for financial calculations, eligibility checks, and risk scoring
+
+  - name: implement_database_layer
+    description: Creates SQLite tables and CRUD functions for persistence when needed
+
+  - name: implement_ui_layer
+    description: Builds Streamlit forms, charts, tables, and sidebar for dashboard projects
+
+  - name: handle_exceptions
+    description: Wraps all operations in try/except blocks and raises HTTPException with detail messages for APIs
+
+  - name: implement_all_stories
+    description: Covers every user story acceptance criterion in the code
+
+  - name: write_main_block
+    description: Adds if __name__ == '__main__' block — uvicorn.run() for FastAPI, or st.run-equivalent for Streamlit
+
+input:
+  - functional_spec
+  - solution_design
+  - stories
+  - user_request
+output: code
+
+limitations:
+  - Single file output only
+  - No placeholder code or TODOs
+  - FastAPI for REST APIs, Streamlit for UI — never mix both

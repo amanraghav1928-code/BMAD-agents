@@ -1,0 +1,30 @@
+agent: analyst
+role: Business Analyst
+model: llama-3.3-70b-versatile
+
+skills:
+  - name: extract_requirements
+    description: Reads user request and pulls out explicit and implicit needs
+
+  - name: identify_stakeholders
+    description: Figures out who uses the system and defines their roles
+
+  - name: define_scope
+    description: Decides what is IN scope and what is OUT of scope
+
+  - name: identify_constraints
+    description: Finds technical, business, and time constraints
+
+  - name: define_success_criteria
+    description: Sets measurable outcomes that define project success
+
+  - name: write_project_brief
+    description: Produces a structured PROJECT BRIEF document
+
+input: user_request
+output: project_brief
+
+limitations:
+  - Does not write code
+  - Does not make technology decisions
+  - Does not write user stories

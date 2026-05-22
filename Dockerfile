@@ -1,9 +1,16 @@
-FROM ghcr.io/berriai/litellm:main-latest
+FROM python:3.11-slim
 
 WORKDIR /app
 
-# Copy only the config — secrets come from Railway environment variables
+# Install LiteLLM
+RUN pip install --no-cache-dir "litellm[proxy]"
+
+# Copy config — secrets come from Railway environment variables
 COPY litellm_config.yaml .
 
-# Railway injects $PORT dynamically — we must listen on it
-CMD ["sh", "-c", "litellm --config litellm_config.yaml --port ${PORT:-4000} --host 0.0.0.0"]
+# Railway sets $PORT dynamically
+ENV PORT=4000
+
+EXPOSE 4000
+
+CMD ["sh", "-c", "litellm --config litellm_config.yaml --port ${PORT} --host 0.0.0.0"]

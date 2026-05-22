@@ -2,5 +2,4 @@
 builder = "dockerfile"
 
 [deploy]
-startCommand = "litellm --config litellm_config.yaml --port $PORT --host 0.0.0.0"
 restartPolicyType = "on_failure"

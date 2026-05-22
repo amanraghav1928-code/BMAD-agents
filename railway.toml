@@ -3,6 +3,4 @@ builder = "dockerfile"
 
 [deploy]
 startCommand = "litellm --config litellm_config.yaml --port $PORT --host 0.0.0.0"
-healthcheckPath = "/health/liveliness"
-healthcheckTimeout = 60
 restartPolicyType = "on_failure"

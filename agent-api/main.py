@@ -8,11 +8,11 @@ POST /v1/chat/completions  →  runs agent pipeline  →  returns OpenAI respons
 GET  /health               →  health check
 """
 
-import os, sys, time, uuid
+import os, sys, time, uuid, json
 from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 from typing import Optional
 
@@ -91,13 +91,49 @@ async def chat_completions(request: ChatRequest):
             result = "The BMAD agent pipeline completed but returned no output."
 
         # Estimate token counts
-        prompt_tokens  = len(user_message.split()) * 2
+        prompt_tokens     = len(user_message.split()) * 2
         completion_tokens = len(result.split()) * 2
+        completion_id     = f"chatcmpl-{uuid.uuid4().hex}"
+        created           = int(time.time())
 
+        # ── Streaming response (SSE) ───────────────────────────────────────────
+        if request.stream:
+            def event_stream():
+                # Send content in one chunk
+                chunk = {
+                    "id": completion_id,
+                    "object": "chat.completion.chunk",
+                    "created": created,
+                    "model": "bmad-agent",
+                    "choices": [{
+                        "index": 0,
+                        "delta": {"role": "assistant", "content": result},
+                        "finish_reason": None,
+                    }],
+                }
+                yield f"data: {json.dumps(chunk)}\n\n"
+                # Send final chunk with finish_reason
+                final = {
+                    "id": completion_id,
+                    "object": "chat.completion.chunk",
+                    "created": created,
+                    "model": "bmad-agent",
+                    "choices": [{
+                        "index": 0,
+                        "delta": {},
+                        "finish_reason": "stop",
+                    }],
+                }
+                yield f"data: {json.dumps(final)}\n\n"
+                yield "data: [DONE]\n\n"
+
+            return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+        # ── Non-streaming response ─────────────────────────────────────────────
         return ChatResponse(
-            id=f"chatcmpl-{uuid.uuid4().hex}",
+            id=completion_id,
             object="chat.completion",
-            created=int(time.time()),
+            created=created,
             model="bmad-agent",
             choices=[Choice(
                 index=0,

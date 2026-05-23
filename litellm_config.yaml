@@ -58,10 +58,5 @@ litellm_settings:
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
   port: 4000
-  database_url: os.environ/DATABASE_URL
-  store_model_in_db: true
 
-mcp_servers:
-  bmad_mcp:
-    url: os.environ/BMAD_MCP_URL
-    description: "BMAD pipeline intelligence — ask questions about agent performance, model usage, recent activity"
+# mcp_servers are added via LiteLLM UI after login

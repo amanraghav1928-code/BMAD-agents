@@ -3,6 +3,9 @@ uvicorn
 python-dotenv
 langchain
 langchain-groq
+langchain-openai
 langgraph
 langfuse
 groq
+litellm
+pyyaml

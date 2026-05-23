@@ -2,8 +2,11 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install dependencies
-RUN pip install --no-cache-dir fastapi uvicorn python-dotenv
+# Copy requirements first for layer caching
+COPY agent-api/requirements.txt .
+
+# Install all dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the full project (agent-api needs access to core/)
 COPY . .

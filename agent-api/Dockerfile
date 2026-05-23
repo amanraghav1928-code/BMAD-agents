@@ -2,14 +2,11 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Copy requirements first for layer caching
-COPY agent-api/requirements.txt .
-
-# Install all dependencies
-RUN pip install --no-cache-dir -r requirements.txt
-
 # Copy the full project (agent-api needs access to core/)
 COPY . .
+
+# Install all dependencies (requirements.txt is in agent-api/)
+RUN pip install --no-cache-dir -r agent-api/requirements.txt
 
 EXPOSE 8000
 

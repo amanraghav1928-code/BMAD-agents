@@ -1,16 +1,19 @@
 model_list:
+  # ── Tier 1: Groq llama-3.3-70b (primary) ─────────────────────────────────────
   - model_name: bmad-primary
     litellm_params:
       model: groq/llama-3.3-70b-versatile
       api_key: os.environ/GROQ_API_KEY
       max_tokens: 8192
 
+  # ── Tier 2: Groq llama-3.1-8b (fast fallback) ────────────────────────────────
   - model_name: bmad-fast
     litellm_params:
       model: groq/llama-3.1-8b-instant
       api_key: os.environ/GROQ_API_KEY
       max_tokens: 1800
 
+  # ── Tier 3: Cerebras (final fallback — no daily cap) ─────────────────────────
   - model_name: bmad-cerebras
     litellm_params:
       model: openai/qwen-3-235b-a22b-instruct-2507
@@ -18,7 +21,32 @@ model_list:
       api_base: https://api.cerebras.ai/v1
       max_tokens: 8192
 
+  # ── BMAD Agent — full 10-agent pipeline ───────────────────────────────────────
+  - model_name: bmad-agent
+    litellm_params:
+      model: openai/bmad-agent
+      api_base: os.environ/BMAD_AGENT_URL
+      api_key: os.environ/LITELLM_MASTER_KEY
+
+  # ── Aliases ───────────────────────────────────────────────────────────────────
+  - model_name: llama-3.3-70b-versatile
+    litellm_params:
+      model: groq/llama-3.3-70b-versatile
+      api_key: os.environ/GROQ_API_KEY
+
+  - model_name: llama-3.1-8b-instant
+    litellm_params:
+      model: groq/llama-3.1-8b-instant
+      api_key: os.environ/GROQ_API_KEY
+
 litellm_settings:
+  fallbacks:
+    - bmad-primary:
+        - bmad-fast
+        - bmad-cerebras
+    - llama-3.3-70b-versatile:
+        - llama-3.1-8b-instant
+        - bmad-cerebras
   num_retries: 2
   request_timeout: 300
   drop_params: true

@@ -1,0 +1,128 @@
+"""
+BMAD Agent API
+==============
+Wraps the BMAD 10-agent pipeline in OpenAI-compatible format.
+LiteLLM routes "bmad-agent" model calls here.
+
+POST /v1/chat/completions  →  runs agent pipeline  →  returns OpenAI response
+GET  /health               →  health check
+"""
+
+import os, sys, time, uuid
+from pathlib import Path
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+from typing import Optional
+
+# Load env
+load_dotenv(Path(__file__).parent.parent / ".env")
+
+# Add parent to path so we can import core/
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+app = FastAPI(title="BMAD Agent API", version="1.0.0")
+
+
+# ── Request / Response models ──────────────────────────────────────────────────
+
+class Message(BaseModel):
+    role: str
+    content: str
+
+class ChatRequest(BaseModel):
+    model: Optional[str] = "bmad-agent"
+    messages: list[Message]
+    max_tokens: Optional[int] = 8192
+    temperature: Optional[float] = 0.7
+    stream: Optional[bool] = False
+
+class Choice(BaseModel):
+    index: int
+    message: Message
+    finish_reason: str
+
+class Usage(BaseModel):
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+
+class ChatResponse(BaseModel):
+    id: str
+    object: str
+    created: int
+    model: str
+    choices: list[Choice]
+    usage: Usage
+
+
+# ── Routes ─────────────────────────────────────────────────────────────────────
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "service": "bmad-agent-api"}
+
+
+@app.post("/v1/chat/completions")
+async def chat_completions(request: ChatRequest):
+    # Extract the user's prompt from the last user message
+    user_message = ""
+    for msg in reversed(request.messages):
+        if msg.role == "user":
+            user_message = msg.content
+            break
+
+    if not user_message:
+        raise HTTPException(status_code=400, detail="No user message found")
+
+    try:
+        from core.agent_runner import run_agent
+
+        # Run the BMAD pipeline
+        session_id = f"litellm-{uuid.uuid4().hex[:8]}"
+        result = run_agent(
+            agent_id="analyst",        # entry point of the pipeline
+            user_message=user_message,
+            session_id=session_id,
+        )
+
+        if not result:
+            result = "The BMAD agent pipeline completed but returned no output."
+
+        # Estimate token counts
+        prompt_tokens  = len(user_message.split()) * 2
+        completion_tokens = len(result.split()) * 2
+
+        return ChatResponse(
+            id=f"chatcmpl-{uuid.uuid4().hex}",
+            object="chat.completion",
+            created=int(time.time()),
+            model="bmad-agent",
+            choices=[Choice(
+                index=0,
+                message=Message(role="assistant", content=result),
+                finish_reason="stop",
+            )],
+            usage=Usage(
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=prompt_tokens + completion_tokens,
+            ),
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Agent error: {str(e)}")
+
+
+@app.get("/v1/models")
+def list_models():
+    return {
+        "object": "list",
+        "data": [{
+            "id": "bmad-agent",
+            "object": "model",
+            "created": 1700000000,
+            "owned_by": "bmad",
+        }]
+    }

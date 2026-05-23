@@ -5,7 +5,7 @@ langchain
 langchain-groq
 langchain-openai
 langgraph
-langfuse
+langfuse>=2.0.0
 groq
 litellm
 pyyaml

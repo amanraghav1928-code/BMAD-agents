@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FitChamp Dashboard</title>
+    <style>
+        /* Global Styles */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1a1d23;
+            color: #fff;
+        }
+        /* Container Styles */
+        .container {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: #2f343a;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        }
+        /* Header Styles */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #333;
+        }
+        .header h1 {
+            font-size: 24px;
+            margin: 0;
+        }
+        /* Workout Log Table Styles */
+        .workout-log {
+            margin-top: 20px;
+        }
+        .workout-log table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .workout-log th, .workout-log td {
+            padding: 10px;
+            border: 1px solid #333;
+        }
+        .workout-log th {
+            background-color: #444;
+        }
+        /* Goal Progress Bars Styles */
+        .goal-progress {
+            margin-top: 20px;
+        }
+        .goal-progress .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #444;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .goal-progress .progress-bar .progress {
+            height: 100%;
+            background-color: #33cc33;
+        }
+        /* Friend Leaderboard Styles */
+        .friend-leaderboard {
+            margin-top: 20px;
+        }
+        .friend-leaderboard ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .friend-leaderboard li {
+            padding: 10px;
+            border-bottom: 1px solid #333;
+        }
+        .friend-leaderboard li:last-child {
+            border-bottom: none;
+        }
+        /* Weekly Stats Chart Styles */
+        .weekly-stats {
+            margin-top: 20px;
+        }
+        .weekly-stats canvas {
+            width: 100%;
+            height: 200px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>FitChamp Dashboard</h1>
+        </div>
+        <div class="workout-log">
+            <h2>Workout Log</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Exercise</th>
+                        <th>Weight</th>
+                        <th>Reps</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>2022-01-01</td>
+                        <td>Bench Press</td>
+                        <td>100lbs</td>
+                        <td>10</td>
+                    </tr>
+                    <tr>
+                        <td>2022-01-02</td>
+                        <td>Squats</td>
+                        <td>150lbs</td>
+                        <td>12</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="goal-progress">
+            <h2>Goal Progress</h2>
+            <div class="progress-bar">
+                <div class="progress" style="width: 50%"></div>
+            </div>
+            <div class="progress-bar">
+                <div class="progress" style="width: 75%"></div>
+            </div>
+        </div>
+        <div class="friend-leaderboard">
+            <h2>Friend Leaderboard</h2>
+            <ul>
+                <li>John Doe - 1000 points</li>
+                <li>Jane Doe - 800 points</li>
+            </ul>
+        </div>
+        <div class="weekly-stats">
+            <h2>Weekly Stats</h2>
+            <canvas id="weekly-stats-chart"></canvas>
+        </div>
+    </div>
+    <script>
+        // Weekly Stats Chart
+        const ctx = document.getElementById('weekly-stats-chart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+                datasets: [{
+                    label: 'Workouts',
+                    data: [10, 15, 20, 25, 30],
+                    backgroundColor: '#33cc33',
+                    borderColor: '#33cc33',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

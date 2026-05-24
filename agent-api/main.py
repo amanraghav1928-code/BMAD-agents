@@ -12,7 +12,8 @@ import os, sys, time, uuid, json
 from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional
 
@@ -23,6 +24,10 @@ load_dotenv(Path(__file__).parent.parent / ".env")
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 app = FastAPI(title="BMAD Agent API", version="1.0.0")
+
+@app.get("/dashboard")
+def dashboard():
+    return FileResponse(Path(__file__).parent / "static" / "dashboard.html")
 
 
 # ── Request / Response models ──────────────────────────────────────────────────

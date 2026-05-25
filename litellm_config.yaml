@@ -55,6 +55,10 @@ litellm_settings:
   langfuse_secret_key: os.environ/LANGFUSE_SECRET_KEY
   langfuse_host: os.environ/LANGFUSE_HOST
 
+mcp_servers:
+  bmad-intelligence:
+    url: https://bmad-mcp-server-production.up.railway.app/mcp
+
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
   port: 4000

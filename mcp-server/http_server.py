@@ -1,14 +1,15 @@
 """
 BMAD MCP HTTP Server
 ====================
-Exposes MCP tools over HTTP so LiteLLM can discover and call them.
+Exposes BMAD tools over both REST and MCP protocol (for LiteLLM playground).
 
-GET  /tools          →  list all available tools
-POST /tools/call     →  call a specific tool
 GET  /health         →  health check
+GET  /tools          →  list all tools (REST)
+POST /tools/call     →  call a tool (REST)
+*    /mcp            →  MCP protocol endpoint (for LiteLLM MCP Servers)
 """
 
-import os
+import os, sys
 from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
@@ -16,9 +17,6 @@ from pydantic import BaseModel
 from typing import Any, Optional
 
 load_dotenv(Path(__file__).parent.parent / ".env")
-
-# Import tool functions from the existing MCP server
-import sys
 sys.path.insert(0, str(Path(__file__).parent))
 
 from server import (
@@ -31,103 +29,76 @@ from server import (
     search_sessions,
 )
 
-app = FastAPI(title="BMAD MCP HTTP Server", version="1.0.0")
+# ── FastMCP server (MCP protocol) ─────────────────────────────────────────────
+from fastmcp import FastMCP
+
+mcp = FastMCP("BMAD Intelligence")
+
+@mcp.tool()
+def ask_pipeline_tool(question: str) -> str:
+    """Ask any question about your BMAD pipeline in plain English. E.g. 'Which agent is slowest?'"""
+    return str(ask_pipeline(question))
+
+@mcp.tool()
+def get_agent_performance_tool(agent_name: str = "") -> str:
+    """Get performance stats for a specific agent or all agents. Leave agent_name blank for all."""
+    return str(get_agent_performance(agent_name))
+
+@mcp.tool()
+def get_model_usage_tool(model_name: str = "") -> str:
+    """See how many traces each model has generated. Leave model_name blank for all."""
+    return str(get_model_usage(model_name))
+
+@mcp.tool()
+def get_recent_activity_tool(limit: int = 10) -> str:
+    """Get a summary of the most recent pipeline runs."""
+    return str(get_recent_activity(limit))
+
+@mcp.tool()
+def compare_agents_tool(agent1: str, agent2: str) -> str:
+    """Compare performance between two agents side by side."""
+    return str(compare_agents(agent1, agent2))
+
+@mcp.tool()
+def get_pipeline_health_tool() -> str:
+    """Get an overall health report of your entire BMAD pipeline."""
+    return str(get_pipeline_health())
+
+@mcp.tool()
+def search_sessions_tool(keyword: str) -> str:
+    """Search pipeline sessions by project keyword e.g. 'stock', 'inventory'."""
+    return str(search_sessions(keyword))
 
 
+# ── FastAPI app ────────────────────────────────────────────────────────────────
+app = FastAPI(title="BMAD MCP Server", version="2.0.0")
+
+# Mount MCP protocol at /mcp (LiteLLM connects here)
+app.mount("/mcp", mcp.streamable_http_app())
+
+
+# ── REST endpoints (kept for backward compatibility) ──────────────────────────
 TOOLS = [
-    {
-        "name": "ask_pipeline",
-        "description": "Ask any question about your BMAD pipeline in plain English. E.g. 'Which agent is slowest?'",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "question": {"type": "string", "description": "Your question about the pipeline"}
-            },
-            "required": ["question"]
-        }
-    },
-    {
-        "name": "get_agent_performance",
-        "description": "Get performance stats for a specific agent or all agents.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "agent_name": {"type": "string", "description": "Agent name e.g. 'analyst', 'developer'. Leave blank for all."}
-            },
-            "required": []
-        }
-    },
-    {
-        "name": "get_model_usage",
-        "description": "See how many traces each model has generated across your pipeline.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "model_name": {"type": "string", "description": "Model name. Leave blank for all."}
-            },
-            "required": []
-        }
-    },
-    {
-        "name": "get_recent_activity",
-        "description": "Get a summary of the most recent pipeline runs.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "limit": {"type": "integer", "description": "How many recent traces to look at (default 10)"}
-            },
-            "required": []
-        }
-    },
-    {
-        "name": "compare_agents",
-        "description": "Compare performance between two agents side by side.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "agent1": {"type": "string", "description": "First agent name"},
-                "agent2": {"type": "string", "description": "Second agent name"}
-            },
-            "required": ["agent1", "agent2"]
-        }
-    },
-    {
-        "name": "get_pipeline_health",
-        "description": "Get an overall health report of your entire BMAD pipeline.",
-        "parameters": {
-            "type": "object",
-            "properties": {},
-            "required": []
-        }
-    },
-    {
-        "name": "search_sessions",
-        "description": "Search pipeline sessions by project keyword e.g. 'stock', 'inventory'.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "keyword": {"type": "string", "description": "Keyword to search for"}
-            },
-            "required": ["keyword"]
-        }
-    },
+    {"name": "ask_pipeline", "description": "Ask any question about your BMAD pipeline in plain English.", "parameters": {"type": "object", "properties": {"question": {"type": "string"}}, "required": ["question"]}},
+    {"name": "get_agent_performance", "description": "Get performance stats for a specific agent or all agents.", "parameters": {"type": "object", "properties": {"agent_name": {"type": "string"}}, "required": []}},
+    {"name": "get_model_usage", "description": "See how many traces each model has generated.", "parameters": {"type": "object", "properties": {"model_name": {"type": "string"}}, "required": []}},
+    {"name": "get_recent_activity", "description": "Get a summary of recent pipeline runs.", "parameters": {"type": "object", "properties": {"limit": {"type": "integer"}}, "required": []}},
+    {"name": "compare_agents", "description": "Compare performance between two agents.", "parameters": {"type": "object", "properties": {"agent1": {"type": "string"}, "agent2": {"type": "string"}}, "required": ["agent1", "agent2"]}},
+    {"name": "get_pipeline_health", "description": "Get an overall health report of your pipeline.", "parameters": {"type": "object", "properties": {}, "required": []}},
+    {"name": "search_sessions", "description": "Search pipeline sessions by keyword.", "parameters": {"type": "object", "properties": {"keyword": {"type": "string"}}, "required": ["keyword"]}},
 ]
-
 
 class ToolCallRequest(BaseModel):
     name: str
     arguments: Optional[dict] = {}
 
-
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "bmad-mcp-http", "tools": len(TOOLS)}
-
+    return {"status": "ok", "service": "bmad-mcp-server", "tools": len(TOOLS), "mcp_endpoint": "/mcp"}
 
 @app.get("/tools")
 def list_tools():
     return {"tools": TOOLS}
-
 
 @app.post("/tools/call")
 def call_tool(req: ToolCallRequest):
@@ -149,9 +120,7 @@ def call_tool(req: ToolCallRequest):
             result = search_sessions(args.get("keyword", ""))
         else:
             raise HTTPException(status_code=404, detail=f"Tool '{req.name}' not found")
-
         return {"result": result}
-
     except HTTPException:
         raise
     except Exception as e:

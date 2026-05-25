@@ -29,6 +29,10 @@ app = FastAPI(title="BMAD Agent API", version="1.0.0")
 def dashboard():
     return FileResponse(Path(__file__).parent / "static" / "dashboard.html")
 
+@app.get("/weather")
+def weather():
+    return FileResponse(Path(__file__).parent / "static" / "weather.html")
+
 
 # ── Request / Response models ──────────────────────────────────────────────────
 

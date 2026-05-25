@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Forecast</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <h1>Weather Forecast</h1>
+            <input type="search" id="search-city" placeholder="Search city...">
+            <button id="search-btn">Search</button>
+        </nav>
+    </header>
+    <main>
+        <section class="current-weather">
+            <h2 id="city-name"></h2>
+            <div class="weather-card">
+                <div class="temperature">
+                    <span id="temp"></span>
+                    <sup>°C</sup>
+                </div>
+                <div class="humidity">
+                    <span id="humidity"></span>
+                    <sup>%</sup>
+                </div>
+                <div class="wind-speed">
+                    <span id="wind-speed"></span>
+                    <sup>m/s</sup>
+                </div>
+                <div class="weather-condition">
+                    <span id="condition"></span>
+                </div>
+            </div>
+        </section>
+        <section class="forecast">
+            <h2>5-Day Forecast</h2>
+            <div class="forecast-cards">
+                <div class="forecast-card">
+                    <h3>Monday</h3>
+                    <div class="temperature">
+                        <span>22</span>
+                        <sup>°C</sup>
+                    </div>
+                    <div class="humidity">
+                        <span>60</span>
+                        <sup>%</sup>
+                    </div>
+                    <div class="wind-speed">
+                        <span>10</span>
+                        <sup>m/s</sup>
+                    </div>
+                    <div class="weather-condition">
+                        <span>Partly Cloudy</span>
+                    </div>
+                </div>
+                <div class="forecast-card">
+                    <h3>Tuesday</h3>
+                    <div class="temperature">
+                        <span>25</span>
+                        <sup>°C</sup>
+                    </div>
+                    <div class="humidity">
+                        <span>50</span>
+                        <sup>%</sup>
+                    </div>
+                    <div class="wind-speed">
+                        <span>12</span>
+                        <sup>m/s</sup>
+                    </div>
+                    <div class="weather-condition">
+                        <span>Sunny</span>
+                    </div>
+                </div>
+                <div class="forecast-card">
+                    <h3>Wednesday</h3>
+                    <div class="temperature">
+                        <span>20</span>
+                        <sup>°C</sup>
+                    </div>
+                    <div class="humidity">
+                        <span>70</span>
+                        <sup>%</sup>
+                    </div>
+                    <div class="wind-speed">
+                        <span>8</span>
+                        <sup>m/s</sup>
+                    </div>
+                    <div class="weather-condition">
+                        <span>Cloudy</span>
+                    </div>
+                </div>
+                <div class="forecast-card">
+                    <h3>Thursday</h3>
+                    <div class="temperature">
+                        <span>28</span>
+                        <sup>°C</sup>
+                    </div>
+                    <div class="humidity">
+                        <span>40</span>
+                        <sup>%</sup>
+                    </div>
+                    <div class="wind-speed">
+                        <span>15</span>
+                        <sup>m/s</sup>
+                    </div>
+                    <div class="weather-condition">
+                        <span>Partly Cloudy</span>
+                    </div>
+                </div>
+                <div class="forecast-card">
+                    <h3>Friday</h3>
+                    <div class="temperature">
+                        <span>22</span>
+                        <sup>°C</sup>
+                    </div>
+                    <div class="humidity">
+                        <span>60</span>
+                        <sup>%</sup>
+                    </div>
+                    <div class="wind-speed">
+                        <span>10</span>
+                        <sup>m/s</sup>
+                    </div>
+                    <div class="weather-condition">
+                        <span>Cloudy</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+    <script src="script.js"></script>
+</body>
+</html>

@@ -74,7 +74,7 @@ def search_sessions_tool(keyword: str) -> str:
 app = FastAPI(title="BMAD MCP Server", version="2.0.0")
 
 # Mount MCP protocol at /mcp (LiteLLM connects here)
-app.mount("/mcp", mcp.streamable_http_app())
+app.mount("/mcp", mcp.http_app())
 
 
 # ── REST endpoints (kept for backward compatibility) ──────────────────────────

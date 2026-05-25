@@ -6,9 +6,10 @@ LiteLLM routes "bmad-agent" model calls here.
 
 POST /v1/chat/completions  →  runs agent pipeline  →  returns OpenAI response
 GET  /health               →  health check
+GET  /pages/{page_id}      →  serves auto-deployed HTML pages
 """
 
-import os, sys, time, uuid, json
+import os, sys, time, uuid, json, re
 from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
@@ -23,7 +24,19 @@ load_dotenv(Path(__file__).parent.parent / ".env")
 # Add parent to path so we can import core/
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Base URL for hosted pages
+BASE_URL = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "bmad-agent-api-production.up.railway.app")
+if not BASE_URL.startswith("http"):
+    BASE_URL = f"https://{BASE_URL}"
+
+# Ensure pages directory exists
+PAGES_DIR = Path(__file__).parent / "static" / "pages"
+PAGES_DIR.mkdir(parents=True, exist_ok=True)
+
 app = FastAPI(title="BMAD Agent API", version="1.0.0")
+
+
+# ── Static page routes ─────────────────────────────────────────────────────────
 
 @app.get("/dashboard")
 def dashboard():
@@ -32,6 +45,40 @@ def dashboard():
 @app.get("/weather")
 def weather():
     return FileResponse(Path(__file__).parent / "static" / "weather.html")
+
+@app.get("/pages/{page_id}")
+def serve_page(page_id: str):
+    page_path = PAGES_DIR / f"{page_id}.html"
+    if not page_path.exists():
+        raise HTTPException(status_code=404, detail="Page not found")
+    return FileResponse(page_path)
+
+
+# ── Auto-deploy helper ─────────────────────────────────────────────────────────
+
+def auto_deploy_html(content: str) -> tuple[str, str | None]:
+    """
+    If the agent response contains HTML, save it and return (modified_content, url).
+    Otherwise return (content, None).
+    """
+    html_match = re.search(r'<!DOCTYPE html>.*?</html>', content, re.DOTALL | re.IGNORECASE)
+    if not html_match:
+        return content, None
+
+    html = html_match.group(0)
+    page_id = uuid.uuid4().hex[:10]
+    page_path = PAGES_DIR / f"{page_id}.html"
+    page_path.write_text(html)
+
+    url = f"{BASE_URL}/pages/{page_id}"
+
+    # Replace the raw HTML block in the response with a clean message + link
+    clean_response = content[:html_match.start()].strip()
+    if clean_response:
+        clean_response += f"\n\n"
+    clean_response += f"✅ **Your website is live!**\n\n🔗 **{url}**\n\nOpen the link above to see your website."
+
+    return clean_response, url
 
 
 # ── Request / Response models ──────────────────────────────────────────────────
@@ -91,7 +138,7 @@ async def chat_completions(request: ChatRequest):
         # Run the BMAD pipeline
         session_id = f"litellm-{uuid.uuid4().hex[:8]}"
         result = run_agent(
-            agent_id="analyst",        # entry point of the pipeline
+            agent_id="analyst",
             user_message=user_message,
             session_id=session_id,
         )
@@ -99,7 +146,9 @@ async def chat_completions(request: ChatRequest):
         if not result:
             result = "The BMAD agent pipeline completed but returned no output."
 
-        # Estimate token counts
+        # ── Auto-deploy any HTML in the response ───────────────────────────────
+        result, deployed_url = auto_deploy_html(result)
+
         prompt_tokens     = len(user_message.split()) * 2
         completion_tokens = len(result.split()) * 2
         completion_id     = f"chatcmpl-{uuid.uuid4().hex}"
@@ -108,7 +157,6 @@ async def chat_completions(request: ChatRequest):
         # ── Streaming response (SSE) ───────────────────────────────────────────
         if request.stream:
             def event_stream():
-                # Send content in one chunk
                 chunk = {
                     "id": completion_id,
                     "object": "chat.completion.chunk",
@@ -121,7 +169,6 @@ async def chat_completions(request: ChatRequest):
                     }],
                 }
                 yield f"data: {json.dumps(chunk)}\n\n"
-                # Send final chunk with finish_reason
                 final = {
                     "id": completion_id,
                     "object": "chat.completion.chunk",

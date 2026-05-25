@@ -32,8 +32,12 @@ model_list:
       model: groq/llama-3.1-8b-instant
       api_key: os.environ/GROQ_API_KEY
 
-  # NOTE: bmad-agent is added via the LiteLLM UI (stored in DB)
-  # URL: https://bmad-agent-api-production.up.railway.app
+  # ── BMAD Agent (custom pipeline) ─────────────────────────────────────────────
+  - model_name: bmad-agent
+    litellm_params:
+      model: openai/bmad-agent
+      api_base: https://bmad-agent-api-production.up.railway.app/v1
+      api_key: bmad-litellm-key-2025
 
 litellm_settings:
   fallbacks:

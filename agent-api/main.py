@@ -46,6 +46,10 @@ def dashboard():
 def weather():
     return FileResponse(Path(__file__).parent / "static" / "weather.html")
 
+@app.get("/pallak")
+def pallak():
+    return FileResponse(Path(__file__).parent / "static" / "pallak.html")
+
 @app.get("/pages/{page_id}")
 def serve_page(page_id: str):
     page_path = PAGES_DIR / f"{page_id}.html"

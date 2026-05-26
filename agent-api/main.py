@@ -213,6 +213,12 @@ Include: fixed navbar, fullscreen hero (giant headline with .grad class + subtex
 Hero headline must be at least 4rem. Make it feel like a $50k design agency built it."""
 
     user_prompt = f"""Build a complete stunning website for: "{user_request}"
+
+REQUIRED — must include a <canvas id="particles"> with this JS pattern:
+  const canvas=document.getElementById('particles'),ctx=canvas.getContext('2d');
+  canvas.style.cssText='position:fixed;top:0;left:0;z-index:0;pointer-events:none;';
+  // resize + create 80 particles + animate them with ctx.arc + requestAnimationFrame
+
 Output ONLY the HTML file starting with <!DOCTYPE html>"""
 
     messages = [SystemMessage(content=system), HumanMessage(content=user_prompt)]

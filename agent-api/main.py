@@ -131,6 +131,85 @@ def serve_page(page_id: str):
     raise HTTPException(status_code=404, detail="Page not found")
 
 
+# ── Guaranteed base CSS injected when model skips styling ─────────────────────
+
+_BASE_CSS = """
+<style id="bmad-base">
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap');
+:root{--p1:#8b5cf6;--p2:#06b6d4;--bg:#080812;--card:rgba(255,255,255,0.06);--border:rgba(255,255,255,0.10);--text:#e2e8f0;--text2:#94a3b8;}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden;min-height:100vh;
+  background-image:radial-gradient(ellipse at 20% 30%,rgba(139,92,246,.18) 0%,transparent 55%),
+                   radial-gradient(ellipse at 80% 70%,rgba(6,182,212,.15) 0%,transparent 55%);}
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:16px 40px;display:flex;align-items:center;justify-content:space-between;
+  background:rgba(8,8,18,.65);backdrop-filter:blur(24px);border-bottom:1px solid var(--border);}
+nav a{color:var(--text2);text-decoration:none;font-size:14px;font-weight:500;margin:0 14px;transition:color .2s;}
+nav a:hover{color:var(--text);}
+.nav-logo{font-size:22px;font-weight:800;background:linear-gradient(135deg,var(--p1),var(--p2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.nav-cta,.btn-primary,button[class*=cta],a[class*=cta]{padding:10px 24px;border-radius:50px;background:linear-gradient(135deg,var(--p1),var(--p2));color:#fff;border:none;font-weight:700;font-size:14px;cursor:pointer;text-decoration:none;display:inline-block;transition:all .3s;}
+.btn-primary:hover,.nav-cta:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(139,92,246,.4);}
+section,main>.section,div[id]{position:relative;z-index:1;padding:100px 40px;}
+h1{font-size:clamp(2.8rem,7vw,5.2rem);font-weight:800;line-height:1.1;letter-spacing:-2px;margin-bottom:20px;
+  background:linear-gradient(135deg,var(--p1),var(--p2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+h2{font-size:clamp(1.8rem,4vw,3rem);font-weight:800;letter-spacing:-1px;margin-bottom:12px;
+  background:linear-gradient(135deg,var(--p1),var(--p2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+h3{font-size:1.2rem;font-weight:700;color:var(--text);margin-bottom:10px;}
+p{color:var(--text2);line-height:1.7;font-size:15px;}
+ul{list-style:none;}
+.hero,section:first-of-type{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding-top:80px;}
+.card,div[class*=card],div[class*=feature],li[class*=card]{background:var(--card);backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:20px;padding:32px;transition:all .3s;}
+.card:hover,div[class*=card]:hover{transform:translateY(-6px);border-color:rgba(255,255,255,.22);box-shadow:0 24px 64px rgba(0,0,0,.4);}
+.grid,div[class*=grid],ul[class*=features]{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px;max-width:1100px;margin:0 auto;}
+footer{text-align:center;padding:40px;border-top:1px solid var(--border);color:var(--text2);font-size:13px;}
+@media(max-width:768px){nav{padding:14px 20px;}section,main>.section{padding:80px 20px;}h1{font-size:2.5rem;}}
+</style>
+<style id="bmad-canvas">
+#particles{position:fixed;top:0;left:0;z-index:0;pointer-events:none;}
+</style>
+<script id="bmad-particles">
+(function(){
+  var c=document.createElement('canvas');c.id='particles';
+  document.body.insertBefore(c,document.body.firstChild);
+  var ctx=c.getContext('2d'),W,H,pts=[];
+  function resize(){c.width=W=innerWidth;c.height=H=innerHeight;}
+  resize();window.addEventListener('resize',resize);
+  for(var i=0;i<70;i++)pts.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,r:Math.random()*1.5+.5});
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    pts.forEach(function(p){
+      p.x+=p.vx;p.y+=p.vy;
+      if(p.x<0||p.x>W)p.vx*=-1;if(p.y<0||p.y>H)p.vy*=-1;
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,6.28);ctx.fillStyle='rgba(139,92,246,.6)';ctx.fill();
+      pts.forEach(function(q){
+        var dx=p.x-q.x,dy=p.y-q.y,d=Math.sqrt(dx*dx+dy*dy);
+        if(d<120){ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.strokeStyle='rgba(139,92,246,'+(1-d/120)*.15+')';ctx.stroke();}
+      });
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+</script>"""
+
+def _ensure_styled(html: str) -> str:
+    """
+    If the model generated unstyled HTML (no CSS variables / backdrop-filter),
+    inject our guaranteed base CSS + particle canvas so it always looks great.
+    """
+    is_styled = ('backdrop-filter' in html or '--p1' in html or
+                 'linear-gradient' in html.lower())
+    if is_styled:
+        return html   # model did the job — don't touch it
+
+    # Inject base CSS right before </head> (or at the top of <body> if no </head>)
+    if '</head>' in html.lower():
+        html = re.sub(r'</head>', _BASE_CSS + '\n</head>', html, count=1, flags=re.IGNORECASE)
+    else:
+        html = re.sub(r'<body[^>]*>', r'\g<0>' + _BASE_CSS, html, count=1, flags=re.IGNORECASE)
+    return html
+
+
 # ── Auto-deploy helper ─────────────────────────────────────────────────────────
 
 def auto_deploy_html(content: str) -> tuple[str, str | None]:
@@ -151,6 +230,10 @@ def auto_deploy_html(content: str) -> tuple[str, str | None]:
             html += "\n</body></html>"
     else:
         return content, None
+
+    # Always guarantee styled output regardless of which model ran
+    html = _ensure_styled(html)
+
     page_id = uuid.uuid4().hex[:10]
 
     try:

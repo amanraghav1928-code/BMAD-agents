@@ -6,6 +6,7 @@ LiteLLM routes "bmad-agent" model calls here.
 
 POST /v1/chat/completions  →  runs agent pipeline  →  returns OpenAI response
 GET  /health               →  health check
+GET  /chat                 →  custom chat UI
 GET  /pages/{page_id}      →  serves auto-deployed HTML pages
 """
 

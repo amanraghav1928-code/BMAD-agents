@@ -147,10 +147,15 @@ async def chat_completions(request: ChatRequest):
     try:
         from core.agent_runner import run_agent
 
-        # Run the BMAD pipeline
+        # Smart routing — detect code/HTML requests → developer agent
+        code_keywords = ["html", "website", "webpage", "css", "javascript", "code", "build me", "create a", "make a", "develop", "app", "dashboard", "landing page", "portfolio", "ui", "frontend"]
+        user_lower = user_message.lower()
+        is_code_request = any(kw in user_lower for kw in code_keywords)
+        agent_id = "developer" if is_code_request else "analyst"
+
         session_id = f"litellm-{uuid.uuid4().hex[:8]}"
         result = run_agent(
-            agent_id="analyst",
+            agent_id=agent_id,
             user_message=user_message,
             session_id=session_id,
         )

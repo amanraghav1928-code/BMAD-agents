@@ -78,10 +78,10 @@ settings:
 
   # Per-agent model — cheap fast model for simple agents, powerful for complex ones
   agent_models:
-    analyst:         llama-3.1-8b-instant      # simple: summarise user request
-    product_manager: llama-3.1-8b-instant      # simple: write spec from brief
+    analyst:         llama-3.3-70b-versatile   # upgraded: better quality output
+    product_manager: llama-3.3-70b-versatile   # upgraded: better spec writing
     architect:       llama-3.3-70b-versatile   # complex: system design decisions
-    designer:        llama-3.1-8b-instant      # simple: UI design system spec
+    designer:        llama-3.3-70b-versatile   # upgraded: better UI design
     scrum_master:    llama-3.1-8b-instant      # simple: format stories
     developer:       llama-3.3-70b-versatile   # complex: generate full code
     code_reviewer:   llama-3.1-8b-instant      # simple: review code quality

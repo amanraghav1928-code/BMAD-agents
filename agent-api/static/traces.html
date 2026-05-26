@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BMAD Traces Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#0d1117;color:#e6edf3;font-family:'Inter',sans-serif;padding:24px;min-height:100vh;}
+
+  .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px;flex-wrap:wrap;gap:12px;}
+  .header h1{font-size:1.5rem;font-weight:700;}
+  .header h1 span{color:#58a6ff;}
+  .header-right{display:flex;align-items:center;gap:12px;}
+  .live-badge{background:#1a2e1a;color:#3fb950;border:1px solid #3fb950;border-radius:20px;padding:4px 14px;font-size:0.8rem;font-weight:600;display:flex;align-items:center;gap:6px;}
+  .live-dot{width:7px;height:7px;background:#3fb950;border-radius:50%;animation:blink 1.2s ease infinite;}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+  .refresh-btn{background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:6px 16px;border-radius:8px;cursor:pointer;font-size:0.83rem;font-family:'Inter',sans-serif;transition:all 0.2s;}
+  .refresh-btn:hover{background:#30363d;}
+
+  /* Stats */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:24px;}
+  .stat-card{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:20px;position:relative;overflow:hidden;}
+  .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:12px 12px 0 0;}
+  .stat-card.blue::before{background:linear-gradient(90deg,#1f6feb,#58a6ff);}
+  .stat-card.green::before{background:linear-gradient(90deg,#238636,#3fb950);}
+  .stat-card.purple::before{background:linear-gradient(90deg,#8b5cf6,#c084fc);}
+  .stat-card.orange::before{background:linear-gradient(90deg,#d97706,#fbbf24);}
+  .stat-card.red::before{background:linear-gradient(90deg,#b91c1c,#f87171);}
+  .stat-label{font-size:0.75rem;color:#8b949e;font-weight:500;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;}
+  .stat-value{font-size:1.9rem;font-weight:700;color:#e6edf3;}
+  .stat-sub{font-size:0.75rem;color:#8b949e;margin-top:6px;}
+
+  /* Charts */
+  .charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;}
+  .chart-card{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:20px;}
+  .chart-title{font-size:0.9rem;font-weight:600;margin-bottom:16px;}
+  .bar-chart{display:flex;align-items:flex-end;gap:6px;height:90px;}
+  .bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;}
+  .bar{width:100%;border-radius:4px 4px 0 0;min-height:4px;transition:opacity 0.2s;cursor:pointer;}
+  .bar:hover{opacity:0.75;}
+  .bar-label{font-size:0.62rem;color:#8b949e;}
+  .bar-val{font-size:0.62rem;color:#58a6ff;font-weight:600;}
+
+  /* Table */
+  .table-card{background:#161b22;border:1px solid #30363d;border-radius:12px;overflow:hidden;margin-bottom:24px;}
+  .table-header{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #30363d;flex-wrap:wrap;gap:10px;}
+  .table-header h3{font-size:0.9rem;font-weight:600;}
+  .table-controls{display:flex;gap:8px;align-items:center;}
+  .search-input{background:#0d1117;border:1px solid #30363d;color:#e6edf3;padding:5px 12px;border-radius:8px;font-size:0.8rem;font-family:'Inter',sans-serif;width:180px;}
+  .search-input:focus{outline:none;border-color:#58a6ff;}
+  .table-wrap{overflow-x:auto;}
+  table{width:100%;border-collapse:collapse;min-width:700px;}
+  th{padding:10px 16px;text-align:left;font-size:0.72rem;color:#8b949e;font-weight:500;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #30363d;white-space:nowrap;}
+  td{padding:11px 16px;font-size:0.82rem;border-bottom:1px solid #21262d;vertical-align:middle;}
+  tr:last-child td{border-bottom:none;}
+  tr:hover td{background:#1c2128;cursor:pointer;}
+  .badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:0.7rem;font-weight:600;}
+  .badge.success{background:#1a2e1a;color:#3fb950;}
+  .badge.error{background:#2d1a1a;color:#f85149;}
+  .badge.pending{background:#1f2d1f;color:#fbbf24;}
+  .agent-tag{background:#21262d;color:#c9d1d9;padding:2px 8px;border-radius:6px;font-size:0.72rem;white-space:nowrap;}
+  .latency{color:#fbbf24;font-weight:600;}
+  .cost{color:#c084fc;font-weight:500;}
+  .trace-id{color:#58a6ff;font-size:0.72rem;font-family:monospace;}
+  .truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+  /* Modal */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;align-items:center;justify-content:center;padding:20px;}
+  .modal-overlay.open{display:flex;}
+  .modal{background:#161b22;border:1px solid #30363d;border-radius:16px;padding:28px;max-width:700px;width:100%;max-height:80vh;overflow-y:auto;}
+  .modal-title{font-size:1rem;font-weight:700;margin-bottom:20px;display:flex;justify-content:space-between;}
+  .modal-close{cursor:pointer;color:#8b949e;font-size:1.2rem;background:none;border:none;color:#8b949e;}
+  .modal-close:hover{color:#e6edf3;}
+  .modal-row{margin-bottom:16px;}
+  .modal-label{font-size:0.72rem;color:#8b949e;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;}
+  .modal-val{background:#0d1117;border:1px solid #21262d;border-radius:8px;padding:12px;font-size:0.82rem;line-height:1.6;word-break:break-word;max-height:150px;overflow-y:auto;}
+  .modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
+  .modal-mini{background:#0d1117;border:1px solid #21262d;border-radius:8px;padding:10px;}
+  .modal-mini .lbl{font-size:0.7rem;color:#8b949e;margin-bottom:4px;}
+  .modal-mini .val{font-size:0.9rem;font-weight:600;}
+
+  /* Pagination */
+  .pagination{display:flex;justify-content:center;align-items:center;gap:8px;margin-top:16px;}
+  .page-btn{background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:0.82rem;font-family:'Inter',sans-serif;}
+  .page-btn:hover{background:#30363d;}
+  .page-btn.active{background:#1f6feb;border-color:#1f6feb;}
+  .page-btn:disabled{opacity:0.4;cursor:not-allowed;}
+  .page-info{color:#8b949e;font-size:0.82rem;}
+
+  /* Loading */
+  .loading{text-align:center;padding:60px;color:#8b949e;}
+  .spinner{width:36px;height:36px;border:3px solid #30363d;border-top-color:#58a6ff;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  @media(max-width:768px){.charts{grid-template-columns:1fr;}.modal-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🤖 BMAD <span>Traces</span> Dashboard</h1>
+  <div class="header-right">
+    <div class="live-badge"><div class="live-dot"></div> Live Data</div>
+    <button class="refresh-btn" onclick="loadAll()">⟳ Refresh</button>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="stats">
+  <div class="stat-card blue"><div class="stat-label">Total Traces</div><div class="stat-value" id="s-total">—</div><div class="stat-sub" id="s-today"></div></div>
+  <div class="stat-card green"><div class="stat-label">Success Rate</div><div class="stat-value" id="s-success">—</div><div class="stat-sub">of all traces</div></div>
+  <div class="stat-card purple"><div class="stat-label">Avg Latency</div><div class="stat-value" id="s-latency">—</div><div class="stat-sub">seconds per trace</div></div>
+  <div class="stat-card orange"><div class="stat-label">Total Cost</div><div class="stat-value" id="s-cost">—</div><div class="stat-sub">USD estimated</div></div>
+  <div class="stat-card red"><div class="stat-label">Unique Sessions</div><div class="stat-value" id="s-sessions">—</div><div class="stat-sub">distinct session IDs</div></div>
+</div>
+
+<!-- Charts -->
+<div class="charts">
+  <div class="chart-card">
+    <div class="chart-title">📊 Traces per Day (last 7 days)</div>
+    <div class="bar-chart" id="bar-chart"><div class="loading"><div class="spinner"></div></div></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-title">⚡ Latency Distribution</div>
+    <div class="bar-chart" id="latency-chart"><div class="loading"><div class="spinner"></div></div></div>
+  </div>
+</div>
+
+<!-- Traces Table -->
+<div class="table-card">
+  <div class="table-header">
+    <h3>🕐 All Traces</h3>
+    <div class="table-controls">
+      <input class="search-input" type="text" id="search" placeholder="Search input/output..." oninput="filterTraces()">
+      <span style="font-size:0.78rem;color:#8b949e" id="trace-count"></span>
+    </div>
+  </div>
+  <div id="table-container">
+    <div class="loading"><div class="spinner"></div><div>Loading traces from Langfuse...</div></div>
+  </div>
+  <div class="pagination" id="pagination"></div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal" onclick="closeModal(event)">
+  <div class="modal" id="modal-content">
+    <div class="modal-title"><span>Trace Detail</span><button class="modal-close" onclick="document.getElementById('modal').classList.remove('open')">✕</button></div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+const PK = 'pk-lf-704fd180-987e-473e-90d1-df50a3ae4f9a';
+const SK = 'sk-lf-e1f4d786-65af-4c38-b90f-ea4990b12f76';
+const HOST = 'https://cloud.langfuse.com';
+const AUTH = 'Basic ' + btoa(PK + ':' + SK);
+
+let allTraces = [];
+let filtered = [];
+let page = 1;
+const PER_PAGE = 15;
+
+async function fetchTraces(p=1, limit=100) {
+  const r = await fetch(`${HOST}/api/public/traces?limit=${limit}&page=${p}`, {headers:{Authorization:AUTH}});
+  return r.json();
+}
+
+async function loadAll() {
+  document.getElementById('table-container').innerHTML = '<div class="loading"><div class="spinner"></div><div>Loading traces...</div></div>';
+  try {
+    // Fetch first page to get total
+    const first = await fetchTraces(1, 100);
+    const total = first.meta.totalItems;
+    const pages = first.meta.totalPages;
+    allTraces = first.data;
+
+    // Fetch remaining pages (up to 5 pages = 500 traces max)
+    const morePagesCount = Math.min(pages - 1, 4);
+    if (morePagesCount > 0) {
+      const promises = [];
+      for(let i = 2; i <= morePagesCount+1; i++) promises.push(fetchTraces(i, 100));
+      const results = await Promise.all(promises);
+      results.forEach(r => { allTraces = allTraces.concat(r.data); });
+    }
+
+    updateStats(total);
+    drawCharts();
+    filtered = [...allTraces];
+    page = 1;
+    renderTable();
+  } catch(e) {
+    document.getElementById('table-container').innerHTML = `<div class="loading" style="color:#f85149">Error loading traces: ${e.message}</div>`;
+  }
+}
+
+function updateStats(total) {
+  document.getElementById('s-total').textContent = total.toLocaleString();
+
+  // Today count
+  const today = new Date().toDateString();
+  const todayCount = allTraces.filter(t => new Date(t.timestamp).toDateString() === today).length;
+  document.getElementById('s-today').textContent = `${todayCount} today`;
+
+  // Success rate
+  const withLatency = allTraces.filter(t => t.latency != null);
+  const successCount = allTraces.filter(t => t.output && !String(t.output).includes('error')).length;
+  const rate = allTraces.length > 0 ? Math.round((successCount/allTraces.length)*100) : 0;
+  document.getElementById('s-success').textContent = rate + '%';
+
+  // Avg latency
+  const latencies = allTraces.filter(t=>t.latency).map(t=>t.latency);
+  const avg = latencies.length ? (latencies.reduce((a,b)=>a+b,0)/latencies.length).toFixed(2) : '—';
+  document.getElementById('s-latency').textContent = avg + 's';
+
+  // Total cost
+  const cost = allTraces.reduce((a,t)=>a+(t.totalCost||0),0);
+  document.getElementById('s-cost').textContent = cost < 0.01 ? '<$0.01' : '$' + cost.toFixed(4);
+
+  // Sessions
+  const sessions = new Set(allTraces.filter(t=>t.sessionId).map(t=>t.sessionId)).size;
+  document.getElementById('s-sessions').textContent = sessions;
+}
+
+function drawCharts() {
+  // Daily bar chart
+  const days = {};
+  for(let i=6;i>=0;i--) {
+    const d = new Date(); d.setDate(d.getDate()-i);
+    days[d.toDateString()] = 0;
+  }
+  allTraces.forEach(t => {
+    const d = new Date(t.timestamp).toDateString();
+    if(days[d] !== undefined) days[d]++;
+  });
+  const dayVals = Object.values(days);
+  const dayKeys = Object.keys(days).map(k=>new Date(k).toLocaleDateString('en',{weekday:'short'}));
+  const maxDay = Math.max(...dayVals,1);
+  const colors = ['#1f6feb','#1f6feb','#1f6feb','#1f6feb','#1f6feb','#3fb950','#3fb950'];
+  document.getElementById('bar-chart').innerHTML = dayVals.map((v,i)=>`
+    <div class="bar-wrap">
+      <div class="bar-val">${v}</div>
+      <div class="bar" style="height:${Math.max((v/maxDay)*100,4)}%;background:linear-gradient(180deg,${colors[i]},${colors[i]}88)"></div>
+      <div class="bar-label">${dayKeys[i]}</div>
+    </div>`).join('');
+
+  // Latency distribution
+  const buckets = {'<0.5s':0,'0.5-1s':0,'1-2s':0,'2-5s':0,'>5s':0};
+  allTraces.filter(t=>t.latency).forEach(t=>{
+    const l=t.latency;
+    if(l<0.5) buckets['<0.5s']++;
+    else if(l<1) buckets['0.5-1s']++;
+    else if(l<2) buckets['1-2s']++;
+    else if(l<5) buckets['2-5s']++;
+    else buckets['>5s']++;
+  });
+  const bVals = Object.values(buckets);
+  const bKeys = Object.keys(buckets);
+  const maxB = Math.max(...bVals,1);
+  const bColors = ['#3fb950','#58a6ff','#fbbf24','#f97316','#f85149'];
+  document.getElementById('latency-chart').innerHTML = bVals.map((v,i)=>`
+    <div class="bar-wrap">
+      <div class="bar-val">${v}</div>
+      <div class="bar" style="height:${Math.max((v/maxB)*100,4)}%;background:linear-gradient(180deg,${bColors[i]},${bColors[i]}88)"></div>
+      <div class="bar-label">${bKeys[i]}</div>
+    </div>`).join('');
+}
+
+function filterTraces() {
+  const q = document.getElementById('search').value.toLowerCase();
+  filtered = allTraces.filter(t => {
+    const inp = JSON.stringify(t.input||'').toLowerCase();
+    const out = JSON.stringify(t.output||'').toLowerCase();
+    const name = (t.name||'').toLowerCase();
+    return !q || inp.includes(q) || out.includes(q) || name.includes(q);
+  });
+  page = 1;
+  renderTable();
+}
+
+function renderTable() {
+  const start = (page-1)*PER_PAGE;
+  const rows = filtered.slice(start, start+PER_PAGE);
+  document.getElementById('trace-count').textContent = `${filtered.length} traces`;
+
+  if(!rows.length) {
+    document.getElementById('table-container').innerHTML = '<div class="loading" style="padding:40px">No traces found</div>';
+    document.getElementById('pagination').innerHTML = '';
+    return;
+  }
+
+  document.getElementById('table-container').innerHTML = `
+    <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>#</th><th>Trace ID</th><th>Name</th><th>Input</th><th>Output</th>
+        <th>Latency</th><th>Cost</th><th>Timestamp</th><th>Status</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map((t,i)=>`
+          <tr onclick="showModal('${t.id}')">
+            <td style="color:#8b949e">${start+i+1}</td>
+            <td><span class="trace-id">${t.id.slice(0,8)}...</span></td>
+            <td><span class="agent-tag">${t.name||'—'}</span></td>
+            <td><span class="truncate" title="${escHtml(JSON.stringify(t.input||''))}">${shortText(t.input)}</span></td>
+            <td><span class="truncate" title="${escHtml(JSON.stringify(t.output||''))}">${shortText(t.output)}</span></td>
+            <td><span class="latency">${t.latency!=null?t.latency.toFixed(2)+'s':'—'}</span></td>
+            <td><span class="cost">${t.totalCost?'$'+t.totalCost.toFixed(6):'$0'}</span></td>
+            <td style="color:#8b949e;white-space:nowrap">${new Date(t.timestamp).toLocaleString()}</td>
+            <td><span class="badge ${t.output?'success':'pending'}">${t.output?'done':'pending'}</span></td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+    </div>`;
+
+  renderPagination();
+}
+
+function renderPagination() {
+  const total = Math.ceil(filtered.length / PER_PAGE);
+  if(total <= 1) { document.getElementById('pagination').innerHTML=''; return; }
+  let html = `<button class="page-btn" onclick="goPage(${page-1})" ${page===1?'disabled':''}>← Prev</button>`;
+  html += `<span class="page-info">Page ${page} of ${total}</span>`;
+  html += `<button class="page-btn" onclick="goPage(${page+1})" ${page===total?'disabled':''}>Next →</button>`;
+  document.getElementById('pagination').innerHTML = html;
+}
+
+function goPage(p) { page = p; renderTable(); window.scrollTo(0,400); }
+
+function shortText(val) {
+  if(!val) return '—';
+  let s = '';
+  if(typeof val === 'object') {
+    const msgs = val.messages;
+    if(msgs && msgs.length) s = msgs[msgs.length-1]?.content || JSON.stringify(val);
+    else s = JSON.stringify(val);
+  } else s = String(val);
+  return escHtml(s.slice(0,60)) + (s.length>60?'...':'');
+}
+
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function showModal(id) {
+  const t = allTraces.find(x=>x.id===id);
+  if(!t) return;
+  const inp = typeof t.input==='object' ? JSON.stringify(t.input,null,2) : String(t.input||'—');
+  const out = typeof t.output==='object' ? JSON.stringify(t.output,null,2) : String(t.output||'—');
+  document.getElementById('modal-body').innerHTML = `
+    <div class="modal-grid">
+      <div class="modal-mini"><div class="lbl">Trace ID</div><div class="val" style="font-size:0.75rem;font-family:monospace;color:#58a6ff">${t.id}</div></div>
+      <div class="modal-mini"><div class="lbl">Name</div><div class="val">${t.name||'—'}</div></div>
+      <div class="modal-mini"><div class="lbl">Latency</div><div class="val" style="color:#fbbf24">${t.latency!=null?t.latency.toFixed(3)+'s':'—'}</div></div>
+      <div class="modal-mini"><div class="lbl">Cost</div><div class="val" style="color:#c084fc">${t.totalCost?'$'+t.totalCost.toFixed(6):'$0'}</div></div>
+      <div class="modal-mini"><div class="lbl">Session ID</div><div class="val" style="font-size:0.75rem">${t.sessionId||'—'}</div></div>
+      <div class="modal-mini"><div class="lbl">Timestamp</div><div class="val" style="font-size:0.78rem">${new Date(t.timestamp).toLocaleString()}</div></div>
+    </div>
+    <div class="modal-row"><div class="modal-label">Input</div><div class="modal-val"><pre style="white-space:pre-wrap;font-family:monospace;font-size:0.78rem">${escHtml(inp)}</pre></div></div>
+    <div class="modal-row"><div class="modal-label">Output</div><div class="modal-val"><pre style="white-space:pre-wrap;font-family:monospace;font-size:0.78rem">${escHtml(out)}</pre></div></div>
+    ${t.tags&&t.tags.length?`<div class="modal-row"><div class="modal-label">Tags</div><div class="modal-val">${t.tags.join(', ')}</div></div>`:''}
+    <a href="https://cloud.langfuse.com${t.htmlPath}" target="_blank" style="display:inline-block;margin-top:8px;background:#1f6feb;color:white;padding:8px 18px;border-radius:8px;text-decoration:none;font-size:0.82rem;font-weight:600;">↗ Open in Langfuse</a>
+  `;
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal(e) {
+  if(e.target.id==='modal') document.getElementById('modal').classList.remove('open');
+}
+
+loadAll();
+</script>
+</body>
+</html>

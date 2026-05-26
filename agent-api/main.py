@@ -169,23 +169,51 @@ def auto_deploy_html(content: str) -> tuple[str, str | None]:
 
 async def _run_html_specialist(user_request: str) -> str:
     """
-    Dedicated HTML generation with 4-provider fallback chain:
-    Groq 70b → Groq 8b → Cerebras → error
-    Compact system prompt to conserve tokens.
+    Dedicated HTML generation.
+    Fallback chain: Groq-70b → Cerebras-235b → Groq-8b
+    Cerebras is tier-2 (not 8b) because 235b produces quality output.
     """
     from langchain_groq import ChatGroq
     from langchain_openai import ChatOpenAI
     from langchain_core.messages import SystemMessage, HumanMessage
 
-    # ── Compact system prompt (~200 tokens vs ~800 before) ────────────────────
-    system = """You are an elite frontend developer. Output ONE complete HTML file only.
-RULES: Start with <!DOCTYPE html>. No markdown fences. All CSS+JS inline. Min 250 lines.
-STYLE: Use Outfit font from Google Fonts. Dark theme with CSS vars (--p1,--p2 gradient colors, --bg, --card rgba(255,255,255,0.07), --border rgba(255,255,255,0.12), --text #e2e8f0).
-Animated blurred orbs in background. Glassmorphism cards (backdrop-filter:blur(20px), border:1px solid rgba(255,255,255,0.12)). Gradient text on headings (-webkit-background-clip:text). Fade-up scroll animations via IntersectionObserver. Fixed frosted-glass navbar. Canvas particle animation. Responsive."""
+    # ── System prompt: concise but includes the KEY CSS patterns ──────────────
+    system = """You are an elite frontend developer. Output ONE complete HTML file. No markdown, no explanations.
 
-    user_prompt = f"""Build a stunning single-page website for: "{user_request}"
-Include: navbar, hero (big headline + 2 buttons), features grid (3-4 glassmorphism cards), stats row, CTA section, footer.
-Pick theme-appropriate gradient colors for --p1/--p2. Output ONLY the HTML starting with <!DOCTYPE html>"""
+MANDATORY VISUAL STYLE — these exact CSS patterns must be used:
+```
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap');
+body { font-family:'Outfit',sans-serif; background:#080812; color:#e2e8f0; overflow-x:hidden; }
+
+/* Floating glow orbs */
+.orb{position:fixed;border-radius:50%;filter:blur(80px);opacity:0.4;animation:drift 14s ease-in-out infinite;pointer-events:none;z-index:0;}
+.orb1{width:500px;height:500px;top:-150px;left:-150px;}
+.orb2{width:400px;height:400px;bottom:-100px;right:-100px;animation-delay:-7s;}
+@keyframes drift{0%,100%{transform:translate(0,0)}50%{transform:translate(50px,40px)}}
+
+/* Frosted navbar */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:18px 48px;display:flex;align-items:center;justify-content:space-between;background:rgba(8,8,18,0.6);backdrop-filter:blur(24px);border-bottom:1px solid rgba(255,255,255,0.08);}
+
+/* Glassmorphism card */
+.card{background:rgba(255,255,255,0.06);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.10);border-radius:20px;padding:32px;transition:all 0.3s;}
+.card:hover{transform:translateY(-6px);border-color:rgba(255,255,255,0.2);box-shadow:0 24px 64px rgba(0,0,0,0.4);}
+
+/* Gradient text */
+.grad{background:linear-gradient(135deg,VAR_P1,VAR_P2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+
+/* Fade-up animation */
+.fade-up{opacity:0;transform:translateY(36px);transition:opacity 0.6s,transform 0.6s;}
+.fade-up.visible{opacity:1;transform:translateY(0);}
+```
+
+Replace VAR_P1 and VAR_P2 with gradient colors that match the theme.
+Add canvas particle animation that matches the theme colors.
+IntersectionObserver to trigger .fade-up on scroll.
+Include: fixed navbar, fullscreen hero (giant headline with .grad class + subtext + 2 pill buttons), 3-4 feature cards in grid, stats row, CTA section, footer.
+Hero headline must be at least 4rem. Make it feel like a $50k design agency built it."""
+
+    user_prompt = f"""Build a complete stunning website for: "{user_request}"
+Output ONLY the HTML file starting with <!DOCTYPE html>"""
 
     messages = [SystemMessage(content=system), HumanMessage(content=user_prompt)]
 
@@ -209,24 +237,24 @@ Pick theme-appropriate gradient colors for --p1/--p2. Output ONLY the HTML start
             print(f"  ⚠️  {name} failed: {e}")
             return None
 
-    # 1️⃣ Groq llama-3.3-70b (best quality)
+    # 1️⃣ Groq llama-3.3-70b — best quality, fast
     if groq_key:
         result = _try_llm(ChatGroq(model="llama-3.3-70b-versatile", temperature=0.7,
                                    api_key=groq_key, max_tokens=8192), "Groq-70b")
         if result: return result
 
-    # 2️⃣ Groq llama-3.1-8b (separate rate limit, faster)
-    if groq_key:
-        result = _try_llm(ChatGroq(model="llama-3.1-8b-instant", temperature=0.7,
-                                   api_key=groq_key, max_tokens=4096), "Groq-8b")
-        if result: return result
-
-    # 3️⃣ Cerebras qwen-3-235b (no daily cap)
+    # 2️⃣ Cerebras qwen-3-235b — 235B model, excellent quality, no daily cap
     if cerebras_key:
         result = _try_llm(ChatOpenAI(model="qwen-3-235b-a22b-instruct-2507",
                                      api_key=cerebras_key,
                                      base_url="https://api.cerebras.ai/v1",
-                                     max_tokens=8192, temperature=0.7), "Cerebras")
+                                     max_tokens=8192, temperature=0.7), "Cerebras-235b")
+        if result: return result
+
+    # 3️⃣ Groq llama-3.1-8b — last resort (smaller model, lower quality)
+    if groq_key:
+        result = _try_llm(ChatGroq(model="llama-3.1-8b-instant", temperature=0.7,
+                                   api_key=groq_key, max_tokens=4096), "Groq-8b")
         if result: return result
 
     raise RuntimeError(f"All LLM providers failed: {' | '.join(errors)}")

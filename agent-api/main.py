@@ -84,13 +84,117 @@ def auto_deploy_html(content: str) -> tuple[str, str | None]:
 
     url = f"{BASE_URL}/pages/{page_id}"
 
-    # Replace the raw HTML block in the response with a clean message + link
-    clean_response = content[:html_match.start()].strip()
-    if clean_response:
-        clean_response += f"\n\n"
-    clean_response += f"✅ **Your website is live!**\n\n🔗 [Click here to open your website]({url})\n\n{url}"
+    # Plain text only — LiteLLM playground does NOT render markdown
+    clean_response = f"Your website is live!\n\n{url}"
 
     return clean_response, url
+
+
+# HTML_SYSTEM_PROMPT — focused prompt for the HTML specialist path
+_HTML_SYSTEM_PROMPT = """You are an elite frontend developer and UI/UX designer. You create STUNNING, BEAUTIFUL, PROFESSIONAL single-page HTML websites that look like they were built by a world-class design agency.
+
+CRITICAL RULES:
+- Output ONLY raw HTML. First character must be < from <!DOCTYPE html>
+- Absolutely NO markdown, NO code fences (```), NO explanations before or after
+- Single self-contained file — all CSS and JS must be inline in the HTML
+
+DESIGN STANDARDS (mandatory for every website):
+
+FONTS: Always import 2+ Google Fonts. Choose fonts that match the mood (Pacifico for fun/celebration, Playfair Display for elegant, Outfit/Inter for modern tech, Quicksand for friendly).
+
+BACKGROUNDS: Never use plain dark gray (#333) or plain white. Use animated gradient backgrounds:
+  body { background: linear-gradient(135deg, #0f0f2d, #1a1a4e, #0d2137); background-size: 400% 400%; animation: gradShift 8s ease infinite; }
+  @keyframes gradShift { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+
+CSS VARIABLES: Define a full color palette with --primary, --secondary, --accent, --text, --bg, --card-bg.
+
+GLASSMORPHISM CARDS (required on every card/section):
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 24px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+
+GRADIENT TEXT (on all main headings):
+  background: linear-gradient(135deg, #a78bfa, #ec4899);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+
+ANIMATIONS (all mandatory):
+  - @keyframes fadeInUp { from{opacity:0;transform:translateY(40px)} to{opacity:1;transform:translateY(0)} }
+  - @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-15px)} }
+  - @keyframes shimmer/pulse on buttons and highlights
+  - CSS transitions: transition: all 0.3s ease on all interactive elements
+  - Hover effects: transform: translateY(-6px) + stronger glow/shadow
+
+LAYOUT:
+  - CSS Grid or Flexbox everywhere (never floats or tables for layout)
+  - Full sections: hero, features/cards, call-to-action, footer minimum
+  - @media (max-width: 768px) responsive breakpoints
+  - Styled scrollbar: ::-webkit-scrollbar { width: 8px; } ::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 4px; }
+
+JAVASCRIPT INTERACTIVITY (required — pick what fits the theme):
+  - Particle/star/confetti canvas animation in the background
+  - Countdown timer, animated counter, typewriter text effect
+  - Interactive buttons with particle burst on click
+  - Quote/testimonial rotator
+  - Smooth scroll with IntersectionObserver for scroll-triggered animations
+
+QUALITY BAR:
+  - Every section must be VISUALLY DISTINCT and polished
+  - Buttons must have gradient backgrounds and glow on hover
+  - No boring plain text sections — every block needs visual interest
+  - The result must make the user say "WOW" when they open it"""
+
+
+async def _run_html_specialist(user_request: str) -> str:
+    """
+    Dedicated HTML generation path — bypasses the complex developer agent
+    and calls the LLM directly with a focused HTML specialist system prompt.
+    """
+    from langchain_groq import ChatGroq
+    from langchain_openai import ChatOpenAI
+    from langchain_core.messages import SystemMessage, HumanMessage
+
+    user_prompt = f"""Create a complete, stunning, production-ready single-page HTML website for this request:
+
+{user_request}
+
+Remember: output ONLY raw HTML starting with <!DOCTYPE html>. Make it absolutely beautiful — glassmorphism cards, animated gradients, gradient text headings, impressive JavaScript interactivity, and professional typography. This should look like it cost $10,000 to design."""
+
+    messages = [
+        SystemMessage(content=_HTML_SYSTEM_PROMPT),
+        HumanMessage(content=user_prompt),
+    ]
+
+    groq_key = os.getenv("GROQ_API_KEY", "")
+    cerebras_key = os.getenv("CEREBRAS_API_KEY", "")
+
+    # Try Groq 70b first (best quality + speed), fall back to Cerebras
+    try:
+        llm = ChatGroq(
+            model="llama-3.3-70b-versatile",
+            temperature=0.4,
+            api_key=groq_key,
+            max_tokens=8192,
+        )
+        response = llm.invoke(messages)
+        return response.content.strip()
+    except Exception as e:
+        print(f"  ⚠️  Groq failed for HTML specialist: {e} — trying Cerebras...")
+
+    # Cerebras fallback
+    llm = ChatOpenAI(
+        model="qwen-3-235b-a22b-instruct-2507",
+        api_key=cerebras_key,
+        base_url="https://api.cerebras.ai/v1",
+        max_tokens=8192,
+        temperature=0.4,
+    )
+    response = llm.invoke(messages)
+    return response.content.strip()
 
 
 # ── Request / Response models ──────────────────────────────────────────────────
@@ -147,73 +251,28 @@ async def chat_completions(request: ChatRequest):
     try:
         from core.agent_runner import run_agent
 
-        # Smart routing — detect code/HTML requests → developer agent
-        code_keywords = ["html", "website", "webpage", "css", "javascript", "code", "build me", "create a", "make a", "develop", "app", "dashboard", "landing page", "portfolio", "ui", "frontend", "page"]
+        # Smart routing — HTML/website requests → dedicated HTML specialist
+        #                  everything else    → analyst agent (BMAD pipeline)
+        code_keywords = [
+            "html", "website", "webpage", "css", "javascript", "build me",
+            "create a", "make a", "develop", "app", "dashboard", "landing page",
+            "portfolio", "ui", "frontend", "page for", "page about",
+        ]
         user_lower = user_message.lower()
-        is_code_request = any(kw in user_lower for kw in code_keywords)
-        agent_id = "developer" if is_code_request else "analyst"
-
-        # ── Enhance user message for developer agent ───────────────────────────
-        # Developer agent normally expects Functional Spec + Solution Design + Stories.
-        # When called directly, inject a design brief so it produces stunning output.
-        run_message = user_message
-        if agent_id == "developer":
-            run_message = f"""Create a complete, production-ready, STUNNING HTML webpage for the following request.
-
-USER REQUEST: {user_message}
-
-MANDATORY DESIGN REQUIREMENTS — implement ALL of the following without exception:
-
-STRUCTURE:
-- Output ONLY raw HTML starting with <!DOCTYPE html> — NO markdown, NO code fences, NO explanations
-- Single self-contained HTML file with all CSS and JS inline
-
-FONTS & TYPOGRAPHY:
-- Import 2+ Google Fonts (e.g., Inter, Pacifico, Playfair Display, Outfit, Quicksand)
-- Use clamp() for responsive font sizes
-- Proper line-height (1.6-1.8) and letter-spacing
-
-COLORS & BACKGROUND:
-- Match the mood of the request (celebration → vibrant colorful gradients; professional → dark/navy)
-- CSS custom properties (variables) for the entire color palette
-- Animated gradient background using @keyframes
-
-VISUAL DESIGN:
-- Glassmorphism cards: background:rgba(255,255,255,0.1); backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.2); border-radius:24px
-- Gradient text headings: background:linear-gradient(...); -webkit-background-clip:text; -webkit-text-fill-color:transparent
-- Box shadows on every card/section: 0 20px 60px rgba(0,0,0,0.25)
-- Styled scrollbar
-
-ANIMATIONS (use all of these):
-- @keyframes fadeInUp for entrance animations on all sections
-- @keyframes float for floating/bouncing elements
-- @keyframes shimmer/gradient-shift for animated backgrounds
-- CSS transitions on all interactive elements (0.3s ease)
-- Hover effects: translateY(-4px) + stronger box-shadow
-
-LAYOUT:
-- CSS Grid or Flexbox (NO floats, NO tables)
-- @media (max-width: 768px) responsive breakpoints
-- Proper spacing: padding 40-60px sections, gap 24px grids
-
-INTERACTIVITY (at minimum):
-- At least one animated button with onclick effect
-- At least one dynamic JavaScript feature relevant to the request
-  (e.g.: confetti cannon, countdown timer, particle system, quote rotator, interactive quiz, animated counter, music player UI, etc.)
-- Smooth scroll behavior
-
-QUALITY BAR:
-- Must look like it was designed by a top-tier design agency
-- Every section must be visually distinct and polished
-- No plain white backgrounds, no boring layouts, no generic Bootstrap look
-- The result should be something the user would be PROUD to share"""
+        is_html_request = any(kw in user_lower for kw in code_keywords)
 
         session_id = f"litellm-{uuid.uuid4().hex[:8]}"
-        result = run_agent(
-            agent_id=agent_id,
-            user_message=run_message,
-            session_id=session_id,
-        )
+
+        if is_html_request:
+            # ── HTML specialist: direct LLM call, focused system prompt ───────
+            result = await _run_html_specialist(user_message)
+        else:
+            # ── BMAD analyst pipeline ─────────────────────────────────────────
+            result = run_agent(
+                agent_id="analyst",
+                user_message=user_message,
+                session_id=session_id,
+            )
 
         if not result:
             result = "The BMAD agent pipeline completed but returned no output."

@@ -88,7 +88,7 @@ def auto_deploy_html(content: str) -> tuple[str, str | None]:
     clean_response = content[:html_match.start()].strip()
     if clean_response:
         clean_response += f"\n\n"
-    clean_response += f"✅ **Your website is live!**\n\n🔗 **[Click here to open your website]({url})**\n\n`{url}`"
+    clean_response += f"✅ **Your website is live!**\n\n🔗 [Click here to open your website]({url})\n\n{url}"
 
     return clean_response, url
 
@@ -148,15 +148,70 @@ async def chat_completions(request: ChatRequest):
         from core.agent_runner import run_agent
 
         # Smart routing — detect code/HTML requests → developer agent
-        code_keywords = ["html", "website", "webpage", "css", "javascript", "code", "build me", "create a", "make a", "develop", "app", "dashboard", "landing page", "portfolio", "ui", "frontend"]
+        code_keywords = ["html", "website", "webpage", "css", "javascript", "code", "build me", "create a", "make a", "develop", "app", "dashboard", "landing page", "portfolio", "ui", "frontend", "page"]
         user_lower = user_message.lower()
         is_code_request = any(kw in user_lower for kw in code_keywords)
         agent_id = "developer" if is_code_request else "analyst"
 
+        # ── Enhance user message for developer agent ───────────────────────────
+        # Developer agent normally expects Functional Spec + Solution Design + Stories.
+        # When called directly, inject a design brief so it produces stunning output.
+        run_message = user_message
+        if agent_id == "developer":
+            run_message = f"""Create a complete, production-ready, STUNNING HTML webpage for the following request.
+
+USER REQUEST: {user_message}
+
+MANDATORY DESIGN REQUIREMENTS — implement ALL of the following without exception:
+
+STRUCTURE:
+- Output ONLY raw HTML starting with <!DOCTYPE html> — NO markdown, NO code fences, NO explanations
+- Single self-contained HTML file with all CSS and JS inline
+
+FONTS & TYPOGRAPHY:
+- Import 2+ Google Fonts (e.g., Inter, Pacifico, Playfair Display, Outfit, Quicksand)
+- Use clamp() for responsive font sizes
+- Proper line-height (1.6-1.8) and letter-spacing
+
+COLORS & BACKGROUND:
+- Match the mood of the request (celebration → vibrant colorful gradients; professional → dark/navy)
+- CSS custom properties (variables) for the entire color palette
+- Animated gradient background using @keyframes
+
+VISUAL DESIGN:
+- Glassmorphism cards: background:rgba(255,255,255,0.1); backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.2); border-radius:24px
+- Gradient text headings: background:linear-gradient(...); -webkit-background-clip:text; -webkit-text-fill-color:transparent
+- Box shadows on every card/section: 0 20px 60px rgba(0,0,0,0.25)
+- Styled scrollbar
+
+ANIMATIONS (use all of these):
+- @keyframes fadeInUp for entrance animations on all sections
+- @keyframes float for floating/bouncing elements
+- @keyframes shimmer/gradient-shift for animated backgrounds
+- CSS transitions on all interactive elements (0.3s ease)
+- Hover effects: translateY(-4px) + stronger box-shadow
+
+LAYOUT:
+- CSS Grid or Flexbox (NO floats, NO tables)
+- @media (max-width: 768px) responsive breakpoints
+- Proper spacing: padding 40-60px sections, gap 24px grids
+
+INTERACTIVITY (at minimum):
+- At least one animated button with onclick effect
+- At least one dynamic JavaScript feature relevant to the request
+  (e.g.: confetti cannon, countdown timer, particle system, quote rotator, interactive quiz, animated counter, music player UI, etc.)
+- Smooth scroll behavior
+
+QUALITY BAR:
+- Must look like it was designed by a top-tier design agency
+- Every section must be visually distinct and polished
+- No plain white backgrounds, no boring layouts, no generic Bootstrap look
+- The result should be something the user would be PROUD to share"""
+
         session_id = f"litellm-{uuid.uuid4().hex[:8]}"
         result = run_agent(
             agent_id=agent_id,
-            user_message=user_message,
+            user_message=run_message,
             session_id=session_id,
         )
 

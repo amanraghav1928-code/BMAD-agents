@@ -94,98 +94,199 @@ def auto_deploy_html(content: str) -> tuple[str, str | None]:
     return clean_response, url
 
 
-# HTML_SYSTEM_PROMPT — focused prompt for the HTML specialist path
-_HTML_SYSTEM_PROMPT = """You are an elite frontend developer and UI/UX designer. You create STUNNING, BEAUTIFUL, PROFESSIONAL single-page HTML websites that look like they were built by a world-class design agency.
-
-CRITICAL RULES:
-- Output ONLY raw HTML. First character must be < from <!DOCTYPE html>
-- Absolutely NO markdown, NO code fences (```), NO explanations before or after
-- Single self-contained file — all CSS and JS must be inline in the HTML
-
-DESIGN STANDARDS (mandatory for every website):
-
-FONTS: Always import 2+ Google Fonts. Choose fonts that match the mood (Pacifico for fun/celebration, Playfair Display for elegant, Outfit/Inter for modern tech, Quicksand for friendly).
-
-BACKGROUNDS: Never use plain dark gray (#333) or plain white. Use animated gradient backgrounds:
-  body { background: linear-gradient(135deg, #0f0f2d, #1a1a4e, #0d2137); background-size: 400% 400%; animation: gradShift 8s ease infinite; }
-  @keyframes gradShift { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
-
-CSS VARIABLES: Define a full color palette with --primary, --secondary, --accent, --text, --bg, --card-bg.
-
-GLASSMORPHISM CARDS (required on every card/section):
-  background: rgba(255,255,255,0.08);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 24px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-
-GRADIENT TEXT (on all main headings):
-  background: linear-gradient(135deg, #a78bfa, #ec4899);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-
-ANIMATIONS (all mandatory):
-  - @keyframes fadeInUp { from{opacity:0;transform:translateY(40px)} to{opacity:1;transform:translateY(0)} }
-  - @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-15px)} }
-  - @keyframes shimmer/pulse on buttons and highlights
-  - CSS transitions: transition: all 0.3s ease on all interactive elements
-  - Hover effects: transform: translateY(-6px) + stronger glow/shadow
-
-LAYOUT:
-  - CSS Grid or Flexbox everywhere (never floats or tables for layout)
-  - Full sections: hero, features/cards, call-to-action, footer minimum
-  - @media (max-width: 768px) responsive breakpoints
-  - Styled scrollbar: ::-webkit-scrollbar { width: 8px; } ::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 4px; }
-
-JAVASCRIPT INTERACTIVITY (required — pick what fits the theme):
-  - Particle/star/confetti canvas animation in the background
-  - Countdown timer, animated counter, typewriter text effect
-  - Interactive buttons with particle burst on click
-  - Quote/testimonial rotator
-  - Smooth scroll with IntersectionObserver for scroll-triggered animations
-
-QUALITY BAR:
-  - Every section must be VISUALLY DISTINCT and polished
-  - Buttons must have gradient backgrounds and glow on hover
-  - No boring plain text sections — every block needs visual interest
-  - The result must make the user say "WOW" when they open it"""
-
-
 async def _run_html_specialist(user_request: str) -> str:
     """
-    Dedicated HTML generation path — bypasses the complex developer agent
-    and calls the LLM directly with a focused HTML specialist system prompt.
+    Dedicated HTML generation — calls Groq 70b directly with a concrete
+    CSS-scaffold prompt so the model always produces beautiful output.
+    Falls back to Cerebras if Groq is rate-limited.
     """
     from langchain_groq import ChatGroq
     from langchain_openai import ChatOpenAI
     from langchain_core.messages import SystemMessage, HumanMessage
 
-    user_prompt = f"""Create a complete, stunning, production-ready single-page HTML website for this request:
+    # ── System prompt with ACTUAL CODE the model must copy ────────────────────
+    system = """You are an elite frontend developer. Output ONE complete HTML file.
 
-{user_request}
+HARD RULES:
+1. Start with <!DOCTYPE html> — first character is <
+2. No markdown fences, no explanations, no text before or after the HTML
+3. All CSS and JS inline inside the file
+4. Output at least 300 lines of real, non-repetitive code
 
-Remember: output ONLY raw HTML starting with <!DOCTYPE html>. Make it absolutely beautiful — glassmorphism cards, animated gradients, gradient text headings, impressive JavaScript interactivity, and professional typography. This should look like it cost $10,000 to design."""
+MANDATORY CSS FOUNDATION — copy this base and adapt colors/content:
+
+  /* === COPY THIS BASE === */
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=Pacifico&display=swap');
+  :root {
+    --p1: /* primary gradient start — pick for the theme */;
+    --p2: /* primary gradient end */;
+    --bg: /* page bg color */;
+    --card: rgba(255,255,255,0.07);
+    --border: rgba(255,255,255,0.12);
+    --text: #e2e8f0;
+    --text2: #94a3b8;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
+  body {
+    font-family:'Outfit',sans-serif;
+    min-height:100vh;
+    background: var(--bg);
+    background-image: radial-gradient(ellipse at 20% 50%, rgba(VAR_P1_RGB,0.18) 0%, transparent 50%),
+                      radial-gradient(ellipse at 80% 20%, rgba(VAR_P2_RGB,0.15) 0%, transparent 50%);
+    color: var(--text);
+    overflow-x:hidden;
+  }
+  /* Animated background orbs */
+  .orb { position:fixed; border-radius:50%; filter:blur(80px); opacity:0.35; animation:drift 12s ease-in-out infinite; pointer-events:none; z-index:0; }
+  .orb1 { width:500px;height:500px; top:-100px;left:-100px; background:var(--p1); animation-delay:0s; }
+  .orb2 { width:400px;height:400px; bottom:-80px;right:-80px; background:var(--p2); animation-delay:-6s; }
+  @keyframes drift { 0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(40px,30px) scale(1.08);} }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar{width:6px;} ::-webkit-scrollbar-thumb{background:var(--p1);border-radius:3px;}
+
+  /* Navbar */
+  nav { position:fixed;top:0;left:0;right:0;z-index:100; padding:16px 40px;
+    display:flex;align-items:center;justify-content:space-between;
+    background:rgba(0,0,0,0.3); backdrop-filter:blur(20px);
+    border-bottom:1px solid var(--border); }
+  .nav-logo { font-size:22px;font-weight:800;
+    background:linear-gradient(135deg,var(--p1),var(--p2));
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text; }
+  .nav-links { display:flex;gap:28px; }
+  .nav-links a { color:var(--text2);text-decoration:none;font-size:14px;font-weight:500;
+    transition:color 0.2s; }
+  .nav-links a:hover { color:var(--text); }
+  .nav-cta { padding:9px 20px;border-radius:50px;font-weight:600;font-size:13px;cursor:pointer;
+    background:linear-gradient(135deg,var(--p1),var(--p2));
+    color:#fff;border:none;transition:all 0.3s;box-shadow:0 4px 20px rgba(0,0,0,0.3); }
+  .nav-cta:hover { transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,0,0,0.4); }
+
+  /* Section wrapper */
+  section { position:relative;z-index:1;padding:100px 40px; }
+
+  /* Glassmorphism card — COPY THIS EXACTLY */
+  .card {
+    background: rgba(255,255,255,0.07);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 24px;
+    padding: 32px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    transition: all 0.3s ease;
+  }
+  .card:hover { transform:translateY(-8px); box-shadow:0 32px 80px rgba(0,0,0,0.4); border-color:rgba(255,255,255,0.2); }
+
+  /* Gradient heading — COPY THIS EXACTLY */
+  .grad-text {
+    background: linear-gradient(135deg, var(--p1), var(--p2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Hero */
+  .hero { min-height:100vh;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;text-align:center;padding-top:80px; }
+  .hero h1 { font-size:clamp(2.8rem,7vw,5.5rem);font-weight:800;line-height:1.1;letter-spacing:-2px;margin-bottom:20px; }
+  .hero p { font-size:clamp(1rem,2vw,1.25rem);color:var(--text2);max-width:580px;line-height:1.7;margin-bottom:36px; }
+
+  /* Buttons */
+  .btn-primary { padding:15px 36px;border-radius:50px;font-size:16px;font-weight:700;cursor:pointer;
+    background:linear-gradient(135deg,var(--p1),var(--p2));
+    color:#fff;border:none;transition:all 0.3s;
+    box-shadow:0 8px 30px rgba(0,0,0,0.35); }
+  .btn-primary:hover { transform:translateY(-3px);box-shadow:0 16px 48px rgba(0,0,0,0.5);filter:brightness(1.1); }
+  .btn-primary:active { transform:translateY(-1px); }
+  .btn-outline { padding:14px 32px;border-radius:50px;font-size:15px;font-weight:600;cursor:pointer;
+    background:transparent;color:var(--text);
+    border:1px solid var(--border);transition:all 0.3s; }
+  .btn-outline:hover { background:rgba(255,255,255,0.07);border-color:rgba(255,255,255,0.25); }
+
+  /* Feature grid */
+  .grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;max-width:1100px;margin:0 auto; }
+
+  /* Card icon */
+  .card-icon { font-size:36px;margin-bottom:16px;display:block; }
+  .card h3 { font-size:20px;font-weight:700;margin-bottom:10px;color:var(--text); }
+  .card p { font-size:14px;color:var(--text2);line-height:1.7; }
+
+  /* Section title */
+  .section-title { font-size:clamp(2rem,4vw,3rem);font-weight:800;letter-spacing:-1px;margin-bottom:14px; }
+  .section-sub { font-size:16px;color:var(--text2);max-width:520px;margin:0 auto 52px;line-height:1.7; }
+
+  /* Entrance animation */
+  .fade-up { opacity:0;transform:translateY(40px);transition:opacity 0.6s ease,transform 0.6s ease; }
+  .fade-up.visible { opacity:1;transform:translateY(0); }
+
+  /* Stats row */
+  .stats { display:flex;gap:48px;justify-content:center;flex-wrap:wrap;margin:40px 0; }
+  .stat-num { font-size:3rem;font-weight:800;line-height:1; }
+  .stat-label { font-size:13px;color:var(--text2);margin-top:4px; }
+
+  /* Footer */
+  footer { text-align:center;padding:40px;border-top:1px solid var(--border);color:var(--text2);font-size:13px; }
+
+  /* Responsive */
+  @media(max-width:768px) {
+    nav { padding:14px 20px; } .nav-links{display:none;}
+    section { padding:80px 20px; }
+    .hero h1 { font-size:2.5rem; }
+    .stats { gap:28px; }
+  }
+  /* === END BASE === */
+
+JAVASCRIPT — always add IntersectionObserver for .fade-up elements:
+  const io = new IntersectionObserver(els => els.forEach(e => { if(e.isIntersecting) e.target.classList.add('visible'); }), {threshold:0.1});
+  document.querySelectorAll('.fade-up').forEach(e => io.observe(e));
+
+Pick ONE additional JS feature that fits the theme (particles canvas, typewriter, confetti, animated counter, etc.) and implement it fully."""
+
+    # ── User prompt — very specific ───────────────────────────────────────────
+    user_prompt = f"""Build a complete, STUNNING, production-ready single-page HTML website for:
+
+"{user_request}"
+
+REQUIREMENTS:
+- Pick a color scheme that perfectly matches the vibe/theme of the request
+- Replace all VAR_P1_RGB / VAR_P2_RGB placeholders with actual RGB values matching your chosen colors
+- Include: navbar, hero section with big headline + subtext + 2 buttons, features/cards section (3-4 cards with glassmorphism), stats row, CTA section, footer
+- Every heading uses .grad-text gradient
+- Every card uses the glassmorphism .card class
+- All sections use .fade-up animation with IntersectionObserver
+- Add a canvas particle/star animation that matches the theme
+- The result should look like a real $50k startup website
+
+Output ONLY the complete HTML file starting with <!DOCTYPE html>"""
 
     messages = [
-        SystemMessage(content=_HTML_SYSTEM_PROMPT),
+        SystemMessage(content=system),
         HumanMessage(content=user_prompt),
     ]
 
     groq_key = os.getenv("GROQ_API_KEY", "")
     cerebras_key = os.getenv("CEREBRAS_API_KEY", "")
 
-    # Try Groq 70b first (best quality + speed), fall back to Cerebras
+    def _strip_fences(text: str) -> str:
+        """Remove markdown code fences if the model wraps output in them."""
+        text = text.strip()
+        if text.startswith("```"):
+            text = re.sub(r'^```[a-z]*\n?', '', text)
+            text = re.sub(r'\n?```$', '', text)
+        return text.strip()
+
+    # Try Groq 70b first
     try:
         llm = ChatGroq(
             model="llama-3.3-70b-versatile",
-            temperature=0.4,
+            temperature=0.7,
             api_key=groq_key,
             max_tokens=8192,
         )
         response = llm.invoke(messages)
-        return response.content.strip()
+        return _strip_fences(response.content)
     except Exception as e:
         print(f"  ⚠️  Groq failed for HTML specialist: {e} — trying Cerebras...")
 
@@ -195,10 +296,10 @@ Remember: output ONLY raw HTML starting with <!DOCTYPE html>. Make it absolutely
         api_key=cerebras_key,
         base_url="https://api.cerebras.ai/v1",
         max_tokens=8192,
-        temperature=0.4,
+        temperature=0.7,
     )
     response = llm.invoke(messages)
-    return response.content.strip()
+    return _strip_fences(response.content)
 
 
 # ── Request / Response models ──────────────────────────────────────────────────

@@ -136,13 +136,21 @@ def serve_page(page_id: str):
 def auto_deploy_html(content: str) -> tuple[str, str | None]:
     """
     If the agent response contains HTML, save it to Postgres and return (modified_content, url).
-    Otherwise return (content, None).
+    Handles both complete HTML (with </html>) and truncated output from smaller models.
     """
-    html_match = re.search(r'<!DOCTYPE html>.*?</html>', content, re.DOTALL | re.IGNORECASE)
-    if not html_match:
-        return content, None
+    stripped = content.strip()
 
-    html = html_match.group(0)
+    # Detect HTML: either a full doc or any response that starts with <!DOCTYPE
+    html_match = re.search(r'<!DOCTYPE html>.*</html>', stripped, re.DOTALL | re.IGNORECASE)
+    if html_match:
+        html = html_match.group(0)
+    elif re.match(r'<!DOCTYPE html>', stripped, re.IGNORECASE):
+        # Model output is HTML but may be truncated — close it cleanly
+        html = stripped
+        if not re.search(r'</html>', html, re.IGNORECASE):
+            html += "\n</body></html>"
+    else:
+        return content, None
     page_id = uuid.uuid4().hex[:10]
 
     try:
@@ -210,7 +218,7 @@ Pick theme-appropriate gradient colors for --p1/--p2. Output ONLY the HTML start
     # 2️⃣ Groq llama-3.1-8b (separate rate limit, faster)
     if groq_key:
         result = _try_llm(ChatGroq(model="llama-3.1-8b-instant", temperature=0.7,
-                                   api_key=groq_key, max_tokens=1800), "Groq-8b")
+                                   api_key=groq_key, max_tokens=4096), "Groq-8b")
         if result: return result
 
     # 3️⃣ Cerebras qwen-3-235b (no daily cap)

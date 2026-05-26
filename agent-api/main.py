@@ -88,7 +88,7 @@ def auto_deploy_html(content: str) -> tuple[str, str | None]:
     clean_response = content[:html_match.start()].strip()
     if clean_response:
         clean_response += f"\n\n"
-    clean_response += f"✅ **Your website is live!**\n\n🔗 **{url}**\n\nOpen the link above to see your website."
+    clean_response += f"✅ **Your website is live!**\n\n🔗 **[Click here to open your website]({url})**\n\n`{url}`"
 
     return clean_response, url
 

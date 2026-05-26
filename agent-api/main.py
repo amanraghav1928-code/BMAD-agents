@@ -38,6 +38,10 @@ app = FastAPI(title="BMAD Agent API", version="1.0.0")
 
 # ── Static page routes ─────────────────────────────────────────────────────────
 
+@app.get("/chat")
+def chat_ui():
+    return FileResponse(Path(__file__).parent / "static" / "chat.html")
+
 @app.get("/dashboard")
 def dashboard():
     return FileResponse(Path(__file__).parent / "static" / "dashboard.html")

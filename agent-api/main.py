@@ -267,8 +267,8 @@ Output ONLY the complete HTML file starting with <!DOCTYPE html>"""
         HumanMessage(content=user_prompt),
     ]
 
-    groq_key = os.getenv("GROQ_API_KEY", "")
-    cerebras_key = os.getenv("CEREBRAS_API_KEY", "")
+    groq_key = os.getenv("GROQ_API_KEY") or None
+    cerebras_key = os.getenv("CEREBRAS_API_KEY") or None
 
     def _strip_fences(text: str) -> str:
         """Remove markdown code fences if the model wraps output in them."""
@@ -278,29 +278,44 @@ Output ONLY the complete HTML file starting with <!DOCTYPE html>"""
             text = re.sub(r'\n?```$', '', text)
         return text.strip()
 
+    last_error = None
+
     # Try Groq 70b first
+    if groq_key:
+        try:
+            llm = ChatGroq(
+                model="llama-3.3-70b-versatile",
+                temperature=0.7,
+                api_key=groq_key,
+                max_tokens=8192,
+            )
+            response = llm.invoke(messages)
+            return _strip_fences(response.content)
+        except Exception as e:
+            last_error = f"Groq: {e}"
+            print(f"  ⚠️  Groq failed for HTML specialist: {e} — trying Cerebras...")
+    else:
+        last_error = "GROQ_API_KEY not set"
+        print("  ⚠️  GROQ_API_KEY not set — skipping Groq, trying Cerebras...")
+
+    # Cerebras fallback
+    if not cerebras_key:
+        raise RuntimeError(
+            f"All LLM providers failed. Last error: {last_error}. "
+            "Ensure GROQ_API_KEY and/or CEREBRAS_API_KEY are set in Railway service variables."
+        )
     try:
-        llm = ChatGroq(
-            model="llama-3.3-70b-versatile",
-            temperature=0.7,
-            api_key=groq_key,
+        llm = ChatOpenAI(
+            model="qwen-3-235b-a22b-instruct-2507",
+            api_key=cerebras_key,
+            base_url="https://api.cerebras.ai/v1",
             max_tokens=8192,
+            temperature=0.7,
         )
         response = llm.invoke(messages)
         return _strip_fences(response.content)
     except Exception as e:
-        print(f"  ⚠️  Groq failed for HTML specialist: {e} — trying Cerebras...")
-
-    # Cerebras fallback
-    llm = ChatOpenAI(
-        model="qwen-3-235b-a22b-instruct-2507",
-        api_key=cerebras_key,
-        base_url="https://api.cerebras.ai/v1",
-        max_tokens=8192,
-        temperature=0.7,
-    )
-    response = llm.invoke(messages)
-    return _strip_fences(response.content)
+        raise RuntimeError(f"All LLM providers failed. Groq: {last_error} | Cerebras: {e}")
 
 
 # ── Request / Response models ──────────────────────────────────────────────────

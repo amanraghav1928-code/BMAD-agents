@@ -14,7 +14,7 @@ import os, sys, time, uuid, json, re
 from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse, StreamingResponse, FileResponse
+from fastapi.responses import JSONResponse, StreamingResponse, FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional
@@ -30,11 +30,61 @@ BASE_URL = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "bmad-agent-api-production.up
 if not BASE_URL.startswith("http"):
     BASE_URL = f"https://{BASE_URL}"
 
-# Ensure pages directory exists
-PAGES_DIR = Path(__file__).parent / "static" / "pages"
-PAGES_DIR.mkdir(parents=True, exist_ok=True)
-
 app = FastAPI(title="BMAD Agent API", version="1.0.0")
+
+
+# ── Postgres page storage ──────────────────────────────────────────────────────
+
+def _get_db_conn():
+    """Return a psycopg2 connection using DATABASE_URL env var."""
+    import psycopg2
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        raise RuntimeError("DATABASE_URL not set")
+    return psycopg2.connect(db_url)
+
+def _ensure_pages_table():
+    """Create the pages table if it doesn't exist."""
+    try:
+        conn = _get_db_conn()
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS pages (
+                id      TEXT PRIMARY KEY,
+                html    TEXT NOT NULL,
+                created TIMESTAMPTZ DEFAULT NOW()
+            )
+        """)
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"⚠️  Could not ensure pages table: {e}")
+
+def _save_page(page_id: str, html: str):
+    """Save HTML to Postgres."""
+    conn = _get_db_conn()
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO pages (id, html) VALUES (%s, %s) ON CONFLICT (id) DO UPDATE SET html = EXCLUDED.html",
+        (page_id, html)
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
+
+def _load_page(page_id: str) -> str | None:
+    """Load HTML from Postgres. Returns None if not found."""
+    conn = _get_db_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT html FROM pages WHERE id = %s", (page_id,))
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    return row[0] if row else None
+
+# Ensure table exists on startup
+_ensure_pages_table()
 
 
 # ── Static page routes ─────────────────────────────────────────────────────────
@@ -65,17 +115,27 @@ def congrats_pallak():
 
 @app.get("/pages/{page_id}")
 def serve_page(page_id: str):
-    page_path = PAGES_DIR / f"{page_id}.html"
-    if not page_path.exists():
-        raise HTTPException(status_code=404, detail="Page not found")
-    return FileResponse(page_path)
+    # Try Postgres first (persistent)
+    try:
+        html = _load_page(page_id)
+        if html:
+            return HTMLResponse(content=html)
+    except Exception as e:
+        print(f"⚠️  DB load failed, trying filesystem: {e}")
+
+    # Fallback: filesystem (ephemeral, works during same container session)
+    page_path = Path(__file__).parent / "static" / "pages" / f"{page_id}.html"
+    if page_path.exists():
+        return FileResponse(page_path)
+
+    raise HTTPException(status_code=404, detail="Page not found")
 
 
 # ── Auto-deploy helper ─────────────────────────────────────────────────────────
 
 def auto_deploy_html(content: str) -> tuple[str, str | None]:
     """
-    If the agent response contains HTML, save it and return (modified_content, url).
+    If the agent response contains HTML, save it to Postgres and return (modified_content, url).
     Otherwise return (content, None).
     """
     html_match = re.search(r'<!DOCTYPE html>.*?</html>', content, re.DOTALL | re.IGNORECASE)
@@ -84,14 +144,18 @@ def auto_deploy_html(content: str) -> tuple[str, str | None]:
 
     html = html_match.group(0)
     page_id = uuid.uuid4().hex[:10]
-    page_path = PAGES_DIR / f"{page_id}.html"
-    page_path.write_text(html)
+
+    try:
+        _save_page(page_id, html)
+    except Exception as e:
+        print(f"⚠️  DB save failed, falling back to filesystem: {e}")
+        # Fallback: save to disk if DB is unavailable
+        pages_dir = Path(__file__).parent / "static" / "pages"
+        pages_dir.mkdir(parents=True, exist_ok=True)
+        (pages_dir / f"{page_id}.html").write_text(html)
 
     url = f"{BASE_URL}/pages/{page_id}"
-
-    # Plain text only — LiteLLM playground does NOT render markdown
     clean_response = f"Your website is live!\n\n{url}"
-
     return clean_response, url
 
 

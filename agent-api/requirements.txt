@@ -10,3 +10,4 @@ langfuse==2.60.2
 groq
 litellm
 pyyaml
+psycopg2-binary

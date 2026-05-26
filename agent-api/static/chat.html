@@ -772,14 +772,30 @@ async function send() {
   let full = '';
   let firstChunk = true;
 
-  try {
+  // Auto-retry once on transient failures (rate limits, 5xx)
+  let attempt = 0;
+  const MAX_ATTEMPTS = 2;
+
+  const doFetch = async () => {
     const res = await fetch(API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: 'bmad-agent', messages: history, stream: true }),
     });
+    if (!res.ok) {
+      if (res.status >= 500 && attempt < MAX_ATTEMPTS - 1) {
+        attempt++;
+        bubbleEl.innerHTML = `<span style="color:var(--text2)">⏳ High demand — retrying automatically…</span>`;
+        await new Promise(r => setTimeout(r, 3000));
+        return doFetch();
+      }
+      throw new Error(`Server error ${res.status}`);
+    }
+    return res;
+  };
 
-    if (!res.ok) throw new Error(`Server error ${res.status}`);
+  try {
+    const res = await doFetch();
 
     const reader = res.body.getReader();
     const dec = new TextDecoder();
@@ -826,7 +842,7 @@ async function send() {
     history.push({ role: 'assistant', content: full });
 
   } catch (err) {
-    bubbleEl.innerHTML = `<span style="color:var(--red)">⚠ ${escHtml(err.message)} — please try again.</span>`;
+    bubbleEl.innerHTML = `<span style="color:var(--text2)">⏳ All AI providers are at peak capacity right now. Please try again in 30 seconds — this is temporary.</span>`;
   } finally {
     setBusy(false);
     document.getElementById('inp').focus();
@@ -835,6 +851,9 @@ async function send() {
 
 // Boot
 document.getElementById('inp').focus();
+
+// Keep-alive ping every 4 minutes so Railway never cold-starts
+setInterval(() => fetch('/health').catch(() => {}), 4 * 60 * 1000);
 </script>
 </body>
 </html>

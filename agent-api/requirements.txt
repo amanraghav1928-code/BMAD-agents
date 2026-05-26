@@ -11,3 +11,4 @@ groq
 litellm
 pyyaml
 psycopg2-binary
+langchain-google-genai

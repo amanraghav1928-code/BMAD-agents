@@ -175,6 +175,7 @@ async def _run_html_specialist(user_request: str) -> str:
     """
     from langchain_groq import ChatGroq
     from langchain_openai import ChatOpenAI
+    from langchain_google_genai import ChatGoogleGenerativeAI
     from langchain_core.messages import SystemMessage, HumanMessage
 
     # ── System prompt: concise but includes the KEY CSS patterns ──────────────
@@ -225,6 +226,7 @@ Output ONLY the HTML file starting with <!DOCTYPE html>"""
 
     groq_key     = os.getenv("GROQ_API_KEY") or None
     cerebras_key = os.getenv("CEREBRAS_API_KEY") or None
+    gemini_key   = os.getenv("GEMINI_API_KEY") or None
     errors       = []
 
     def _strip_fences(text: str) -> str:
@@ -243,13 +245,13 @@ Output ONLY the HTML file starting with <!DOCTYPE html>"""
             print(f"  ⚠️  {name} failed: {e}")
             return None
 
-    # 1️⃣ Groq llama-3.3-70b — best quality, fast
+    # 1️⃣  Groq llama-3.3-70b — best quality, fast (100k tokens/day)
     if groq_key:
         result = _try_llm(ChatGroq(model="llama-3.3-70b-versatile", temperature=0.7,
                                    api_key=groq_key, max_tokens=8192), "Groq-70b")
         if result: return result
 
-    # 2️⃣ Cerebras qwen-3-235b — 235B model, excellent quality, no daily cap
+    # 2️⃣  Cerebras qwen-3-235b — 235B params, no daily cap
     if cerebras_key:
         result = _try_llm(ChatOpenAI(model="qwen-3-235b-a22b-instruct-2507",
                                      api_key=cerebras_key,
@@ -257,7 +259,15 @@ Output ONLY the HTML file starting with <!DOCTYPE html>"""
                                      max_tokens=8192, temperature=0.7), "Cerebras-235b")
         if result: return result
 
-    # 3️⃣ Groq llama-3.1-8b — last resort (smaller model, lower quality)
+    # 3️⃣  Google Gemini Flash — 1M tokens/day free, very reliable
+    if gemini_key:
+        result = _try_llm(ChatGoogleGenerativeAI(model="gemini-2.0-flash",
+                                                  google_api_key=gemini_key,
+                                                  temperature=0.7,
+                                                  max_output_tokens=8192), "Gemini-Flash")
+        if result: return result
+
+    # 4️⃣  Groq llama-3.1-8b — last resort
     if groq_key:
         result = _try_llm(ChatGroq(model="llama-3.1-8b-instant", temperature=0.7,
                                    api_key=groq_key, max_tokens=4096), "Groq-8b")

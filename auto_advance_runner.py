@@ -17,7 +17,7 @@ import requests
 from pathlib import Path
 
 FILE_PATH  = Path(__file__).parent / "auto_advance.txt"
-API_URL    = "http://localhost:8000/v1/chat/completions"
+API_URL    = "https://bmad-agent-api-production.up.railway.app/v1/chat/completions"
 POLL_SECS  = 5   # check every 5 seconds
 
 def read_file():

@@ -9,14 +9,7 @@ metadata:
     Scrum Master → Developer → Code Reviewer → Executor → Mock Tester → QA.
     Includes a complexity router that auto-routes simple prompts to a lightweight
     6-agent pipeline and complex prompts to the full BMAD stack.
-  tags:
-    - ai
-    - agents
-    - llm
-    - python
-    - langchain
-    - langgraph
-    - groq
+  tags: [ai, agents, llm, python, langchain, langgraph, groq]
   links:
     - url: https://bmad-agent-api-production.up.railway.app/traces
       title: Live Traces Dashboard
@@ -27,6 +20,9 @@ metadata:
     - url: https://cloud.langfuse.com
       title: Langfuse Observability
       icon: search
+    - url: https://github.com/amanraghav1928-code/BMAD-agents
+      title: GitHub Repository
+      icon: github
   annotations:
     github.com/project-slug: amanraghav1928-code/BMAD-agents
     backstage.io/techdocs-ref: dir:.
@@ -34,30 +30,196 @@ spec:
   type: service
   owner: user:default/guest
   lifecycle: production
-  providesApis:
-    - bmad-agent-api
+  providesApis: [bmad-agent-api]
+  subcomponentOf: bmad-agent-system
   dependsOn:
     - resource:groq-llm
     - resource:langfuse-observability
+    - resource:cerebras-llm
+    - resource:railway-deployment
 
 ---
+# ── Individual Agents ──────────────────────────────────────────────────────────
+
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: bmad-agent-analyst
+  title: "Agent 1: Business Analyst"
+  description: Parses the user prompt and extracts requirements into a structured project brief.
+  tags: [ai, agent, bmad]
+  links:
+    - url: https://cloud.langfuse.com
+      title: Traces in Langfuse
+      icon: search
+spec:
+  type: service
+  owner: user:default/guest
+  lifecycle: production
+  subcomponentOf: bmad-agent-system
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: bmad-agent-product-manager
+  title: "Agent 2: Product Manager"
+  description: Writes a full functional specification from the project brief.
+  tags: [ai, agent, bmad]
+spec:
+  type: service
+  owner: user:default/guest
+  lifecycle: production
+  subcomponentOf: bmad-agent-system
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: bmad-agent-architect
+  title: "Agent 3: Solution Architect"
+  description: Designs the technical architecture and system design document.
+  tags: [ai, agent, bmad]
+spec:
+  type: service
+  owner: user:default/guest
+  lifecycle: production
+  subcomponentOf: bmad-agent-system
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: bmad-agent-designer
+  title: "Agent 4a: UI/UX Designer"
+  description: Creates the UI/UX design system. Runs in parallel with Scrum Master.
+  tags: [ai, agent, bmad, parallel]
+spec:
+  type: service
+  owner: user:default/guest
+  lifecycle: production
+  subcomponentOf: bmad-agent-system
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: bmad-agent-scrum-master
+  title: "Agent 4b: Scrum Master"
+  description: Writes user stories and sprint plan. Runs in parallel with Designer.
+  tags: [ai, agent, bmad, parallel]
+spec:
+  type: service
+  owner: user:default/guest
+  lifecycle: production
+  subcomponentOf: bmad-agent-system
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: bmad-agent-developer
+  title: "Agent 5: Senior Developer"
+  description: Generates production-quality code from all previous agent outputs.
+  tags: [ai, agent, bmad]
+spec:
+  type: service
+  owner: user:default/guest
+  lifecycle: production
+  subcomponentOf: bmad-agent-system
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: bmad-agent-code-reviewer
+  title: "Agent 6: Code Reviewer"
+  description: Reviews code quality, security, and correctness. Returns APPROVED or NEEDS_FIXES.
+  tags: [ai, agent, bmad]
+spec:
+  type: service
+  owner: user:default/guest
+  lifecycle: production
+  subcomponentOf: bmad-agent-system
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: bmad-agent-executor
+  title: "Agent 7: Executor"
+  description: Runs syntax checks, compiles code, and validates it executes correctly.
+  tags: [ai, agent, bmad]
+spec:
+  type: service
+  owner: user:default/guest
+  lifecycle: production
+  subcomponentOf: bmad-agent-system
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: bmad-agent-mock-tester
+  title: "Agent 8: Mock Test Engineer"
+  description: Generates and runs pytest mock tests against the produced code.
+  tags: [ai, agent, bmad]
+spec:
+  type: service
+  owner: user:default/guest
+  lifecycle: production
+  subcomponentOf: bmad-agent-system
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: bmad-agent-qa-engineer
+  title: "Agent 9: QA Engineer"
+  description: Writes test strategy and plan, delivers final PASS/FAIL verdict.
+  tags: [ai, agent, bmad]
+spec:
+  type: service
+  owner: user:default/guest
+  lifecycle: production
+  subcomponentOf: bmad-agent-system
+
+---
+# ── Complexity Router ──────────────────────────────────────────────────────────
+
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: bmad-complexity-router
+  title: Complexity Router
+  description: >
+    Scores prompt complexity 1-10 via a fast LLM call and routes to:
+    Simple (1-4) → agent_system (8b model), Standard (5-7) → agent_system (70b),
+    Complex (8-10) → Full BMAD pipeline.
+  tags: [ai, router, bmad]
+spec:
+  type: library
+  owner: user:default/guest
+  lifecycle: production
+  subcomponentOf: bmad-agent-system
+
+---
+# ── API ────────────────────────────────────────────────────────────────────────
+
 apiVersion: backstage.io/v1alpha1
 kind: API
 metadata:
   name: bmad-agent-api
   title: BMAD Agent API
-  description: >
-    OpenAI-compatible REST API for the BMAD agent pipeline.
-    Deployed on Railway. Supports chat completions, complexity-routed builds,
-    and a live traces dashboard.
-  tags:
-    - ai
-    - rest
-    - openai-compatible
+  description: OpenAI-compatible REST API for the BMAD pipeline. Deployed on Railway.
+  tags: [ai, rest, openai-compatible]
   links:
     - url: https://bmad-agent-api-production.up.railway.app
       title: Live API
       icon: web
+    - url: https://bmad-agent-api-production.up.railway.app/traces
+      title: Traces Dashboard
+      icon: dashboard
 spec:
   type: openapi
   owner: user:default/guest
@@ -76,10 +238,10 @@ spec:
           summary: Health check
           responses:
             "200":
-              description: Service is healthy
+              description: OK
       /v1/chat/completions:
         post:
-          summary: Run BMAD agent pipeline (OpenAI-compatible)
+          summary: Run BMAD pipeline (OpenAI-compatible)
           requestBody:
             required: true
             content:
@@ -101,13 +263,10 @@ spec:
                             type: string
           responses:
             "200":
-              description: Agent pipeline result
+              description: Pipeline result
       /v1/route:
         post:
-          summary: Auto-route prompt by complexity (1-10 score)
-          description: >
-            Scores the prompt complexity with a fast LLM call, then routes to
-            agent_system (simple/standard) or BMAD (complex).
+          summary: Auto-route by complexity (1-10)
           requestBody:
             required: true
             content:
@@ -117,27 +276,47 @@ spec:
                   properties:
                     prompt:
                       type: string
-                      example: "Build a SaaS with auth and payments"
           responses:
             "200":
-              description: Routing result with score, tier, pipeline, and output
+              description: "{score, tier, pipeline, result}"
       /traces:
         get:
-          summary: Live Langfuse traces dashboard
+          summary: Live Langfuse traces dashboard (HTML)
           responses:
             "200":
               description: HTML dashboard
 
 ---
+# ── Resources ──────────────────────────────────────────────────────────────────
+
 apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: groq-llm
-  title: Groq LLM
-  description: Groq-hosted LLaMA models used by BMAD agents (primary inference provider)
-  tags:
-    - llm
-    - external
+  title: Groq LLM — llama-3.3-70b-versatile
+  description: Primary inference. 100K tokens/day free tier. Used by all BMAD agents.
+  tags: [llm, groq, external]
+  links:
+    - url: https://console.groq.com
+      title: Groq Console
+      icon: web
+spec:
+  type: service
+  owner: user:default/guest
+  lifecycle: production
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: cerebras-llm
+  title: Cerebras — Qwen-3-235B
+  description: Tier-3 fallback. 235B params, no daily cap, free. Used when Groq rate-limits.
+  tags: [llm, cerebras, external]
+  links:
+    - url: https://cloud.cerebras.ai
+      title: Cerebras Cloud
+      icon: web
 spec:
   type: service
   owner: user:default/guest
@@ -149,10 +328,35 @@ kind: Resource
 metadata:
   name: langfuse-observability
   title: Langfuse Observability
-  description: Trace logging and LLM observability for the BMAD pipeline
-  tags:
-    - observability
-    - external
+  description: Traces 919+ pipeline runs. Tracks tokens, latency, cost per agent.
+  tags: [observability, tracing, external]
+  links:
+    - url: https://cloud.langfuse.com
+      title: Langfuse Dashboard
+      icon: search
+    - url: https://bmad-agent-api-production.up.railway.app/traces
+      title: Custom Traces UI
+      icon: dashboard
+spec:
+  type: service
+  owner: user:default/guest
+  lifecycle: production
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: railway-deployment
+  title: Railway Deployment
+  description: Hosts the BMAD Agent API. Auto-deploys on git push to main.
+  tags: [infrastructure, deployment, external]
+  links:
+    - url: https://railway.app
+      title: Railway Dashboard
+      icon: web
+    - url: https://bmad-agent-api-production.up.railway.app/health
+      title: Live Health Check
+      icon: help
 spec:
   type: service
   owner: user:default/guest

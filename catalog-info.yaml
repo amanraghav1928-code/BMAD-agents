@@ -412,4 +412,5 @@ spec:
   profile:
     displayName: Guest User
     email: guest@example.com
+  memberOf: []
 

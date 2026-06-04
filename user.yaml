@@ -1,0 +1,12 @@
+apiVersion: backstage.io/v1alpha1
+kind: User
+metadata:
+  name: guest
+  title: Aman Raghav
+  description: BMAD platform owner and AI engineer
+  tags: [ai, engineer]
+spec:
+  memberOf: []
+  profile:
+    displayName: Aman Raghav
+    email: amanraghav1928@gmail.com

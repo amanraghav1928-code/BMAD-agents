@@ -28,7 +28,7 @@ metadata:
     backstage.io/techdocs-ref: dir:.
 spec:
   type: service
-  owner: user:default/guest
+  owner: user:guest
   lifecycle: production
   providesApis: [bmad-agent-api]
   dependsOn:
@@ -40,23 +40,42 @@ spec:
 ---
 # ── Individual Agents ──────────────────────────────────────────────────────────
 
+---
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: bmad-agent-analyst
   title: "Agent 1: Business Analyst"
   description: Parses the user prompt and extracts requirements into a structured project brief.
-  tags: [ai, agent, bmad]
+  tags:
+    - ai
+    - agent
+    - bmad
+
   links:
+    - url: https://github.com/amanraghav1928-code/BMAD-agents
+      title: Source Code
+      icon: github
+
     - url: https://cloud.langfuse.com
-      title: Traces in Langfuse
+      title: Langfuse Traces
       icon: search
+
+    - url: https://bmad-agent-api-production.up.railway.app/traces
+      title: Live Traces Dashboard
+      icon: dashboard
+
 spec:
   type: service
-  owner: user:default/guest
+  owner: user:guest
   lifecycle: production
   subcomponentOf: bmad-agent-system
+  dependsOn:
 
+    - component:bmad-agent-designer
+
+    - component:bmad-agent-scrum-master
+  
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -67,9 +86,12 @@ metadata:
   tags: [ai, agent, bmad]
 spec:
   type: service
-  owner: user:default/guest
+  owner: user:guest
   lifecycle: production
   subcomponentOf: bmad-agent-system
+
+  dependsOn:
+    - component:bmad-agent-analyst
 
 ---
 apiVersion: backstage.io/v1alpha1
@@ -81,9 +103,11 @@ metadata:
   tags: [ai, agent, bmad]
 spec:
   type: service
-  owner: user:default/guest
+  owner: user:guest
   lifecycle: production
   subcomponentOf: bmad-agent-system
+  dependsOn:
+     - component:bmad-agent-product-manager
 
 ---
 apiVersion: backstage.io/v1alpha1
@@ -95,9 +119,11 @@ metadata:
   tags: [ai, agent, bmad, parallel]
 spec:
   type: service
-  owner: user:default/guest
+  owner: user:guest
   lifecycle: production
   subcomponentOf: bmad-agent-system
+  dependsOn:
+    - component:bmad-agent-architect
 
 ---
 apiVersion: backstage.io/v1alpha1
@@ -109,9 +135,12 @@ metadata:
   tags: [ai, agent, bmad, parallel]
 spec:
   type: service
-  owner: user:default/guest
+  owner: user:guest
   lifecycle: production
   subcomponentOf: bmad-agent-system
+  dependsOn:
+
+    - component:bmad-agent-architect
 
 ---
 apiVersion: backstage.io/v1alpha1
@@ -123,10 +152,13 @@ metadata:
   tags: [ai, agent, bmad]
 spec:
   type: service
-  owner: user:default/guest
+  owner: user:guest
   lifecycle: production
   subcomponentOf: bmad-agent-system
+dependsOn:
 
+    - component:bmad-agent-designer
+    - component:bmad-agent-scrum-master
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -137,9 +169,12 @@ metadata:
   tags: [ai, agent, bmad]
 spec:
   type: service
-  owner: user:default/guest
+  owner: user:guest
   lifecycle: production
   subcomponentOf: bmad-agent-system
+  dependsOn:
+
+    - component:bmad-agent-developer
 
 ---
 apiVersion: backstage.io/v1alpha1
@@ -151,9 +186,12 @@ metadata:
   tags: [ai, agent, bmad]
 spec:
   type: service
-  owner: user:default/guest
+  owner: user:guest
   lifecycle: production
   subcomponentOf: bmad-agent-system
+  dependsOn:
+
+    - component:bmad-agent-code-reviewer
 
 ---
 apiVersion: backstage.io/v1alpha1
@@ -165,9 +203,12 @@ metadata:
   tags: [ai, agent, bmad]
 spec:
   type: service
-  owner: user:default/guest
+  owner: user:guest
   lifecycle: production
   subcomponentOf: bmad-agent-system
+  dependsOn:
+
+    - component:bmad-agent-executor
 
 ---
 apiVersion: backstage.io/v1alpha1
@@ -179,10 +220,12 @@ metadata:
   tags: [ai, agent, bmad]
 spec:
   type: service
-  owner: user:default/guest
+  owner: user:guest
   lifecycle: production
   subcomponentOf: bmad-agent-system
+  dependsOn:
 
+    - component:bmad-agent-mock-tester
 ---
 # ── Complexity Router ──────────────────────────────────────────────────────────
 
@@ -198,9 +241,12 @@ metadata:
   tags: [ai, router, bmad]
 spec:
   type: library
-  owner: user:default/guest
+  owner: user:guest
   lifecycle: production
   subcomponentOf: bmad-agent-system
+  dependsOn:
+
+    - component:bmad-agent-product-manager
 
 ---
 # ── API ────────────────────────────────────────────────────────────────────────
@@ -221,7 +267,7 @@ metadata:
       icon: dashboard
 spec:
   type: openapi
-  owner: user:default/guest
+  owner: user:guest
   lifecycle: production
   definition: |
     openapi: "3.0.0"
@@ -301,7 +347,7 @@ metadata:
       icon: web
 spec:
   type: service
-  owner: user:default/guest
+  owner: user:guest
   lifecycle: production
 
 ---
@@ -318,7 +364,7 @@ metadata:
       icon: web
 spec:
   type: service
-  owner: user:default/guest
+  owner: user:guest
   lifecycle: production
 
 ---
@@ -338,7 +384,7 @@ metadata:
       icon: dashboard
 spec:
   type: service
-  owner: user:default/guest
+  owner: user:guest
   lifecycle: production
 
 ---
@@ -358,5 +404,16 @@ metadata:
       icon: help
 spec:
   type: service
-  owner: user:default/guest
+  owner: user:guest
   lifecycle: production
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: User
+metadata:
+  name: guest
+spec:
+  profile:
+    displayName: Guest User
+    email: guest@example.com
+

@@ -31,7 +31,6 @@ spec:
   owner: user:default/guest
   lifecycle: production
   providesApis: [bmad-agent-api]
-  subcomponentOf: bmad-agent-system
   dependsOn:
     - resource:groq-llm
     - resource:langfuse-observability

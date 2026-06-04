@@ -1,0 +1,159 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: bmad-agent-system
+  title: BMAD Agent System
+  description: >
+    Autonomous 10-agent AI development pipeline. Takes a single prompt and
+    produces production-ready code via Analyst → PM → Architect → Designer →
+    Scrum Master → Developer → Code Reviewer → Executor → Mock Tester → QA.
+    Includes a complexity router that auto-routes simple prompts to a lightweight
+    6-agent pipeline and complex prompts to the full BMAD stack.
+  tags:
+    - ai
+    - agents
+    - llm
+    - python
+    - langchain
+    - langgraph
+    - groq
+  links:
+    - url: https://bmad-agent-api-production.up.railway.app/traces
+      title: Live Traces Dashboard
+      icon: dashboard
+    - url: https://bmad-agent-api-production.up.railway.app/health
+      title: Health Check
+      icon: help
+    - url: https://cloud.langfuse.com
+      title: Langfuse Observability
+      icon: search
+  annotations:
+    github.com/project-slug: amanraghav1928-code/BMAD-agents
+    backstage.io/techdocs-ref: dir:.
+spec:
+  type: service
+  owner: user:guest
+  lifecycle: production
+  providesApis:
+    - bmad-agent-api
+  dependsOn:
+    - resource:groq-llm
+    - resource:langfuse-observability
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: bmad-agent-api
+  title: BMAD Agent API
+  description: >
+    OpenAI-compatible REST API for the BMAD agent pipeline.
+    Deployed on Railway. Supports chat completions, complexity-routed builds,
+    and a live traces dashboard.
+  tags:
+    - ai
+    - rest
+    - openai-compatible
+  links:
+    - url: https://bmad-agent-api-production.up.railway.app
+      title: Live API
+      icon: web
+spec:
+  type: openapi
+  owner: user:guest
+  lifecycle: production
+  definition: |
+    openapi: "3.0.0"
+    info:
+      title: BMAD Agent API
+      version: "1.0.0"
+      description: OpenAI-compatible API wrapping the BMAD 10-agent pipeline.
+    servers:
+      - url: https://bmad-agent-api-production.up.railway.app
+    paths:
+      /health:
+        get:
+          summary: Health check
+          responses:
+            "200":
+              description: Service is healthy
+      /v1/chat/completions:
+        post:
+          summary: Run BMAD agent pipeline (OpenAI-compatible)
+          requestBody:
+            required: true
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    model:
+                      type: string
+                      example: bmad-agent
+                    messages:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          role:
+                            type: string
+                          content:
+                            type: string
+          responses:
+            "200":
+              description: Agent pipeline result
+      /v1/route:
+        post:
+          summary: Auto-route prompt by complexity (1-10 score)
+          description: >
+            Scores the prompt complexity with a fast LLM call, then routes to
+            agent_system (simple/standard) or BMAD (complex).
+          requestBody:
+            required: true
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    prompt:
+                      type: string
+                      example: "Build a SaaS with auth and payments"
+          responses:
+            "200":
+              description: Routing result with score, tier, pipeline, and output
+      /traces:
+        get:
+          summary: Live Langfuse traces dashboard
+          responses:
+            "200":
+              description: HTML dashboard
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: groq-llm
+  title: Groq LLM
+  description: Groq-hosted LLaMA models used by BMAD agents (primary inference provider)
+  tags:
+    - llm
+    - external
+spec:
+  type: service
+  owner: user:guest
+  lifecycle: production
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: langfuse-observability
+  title: Langfuse Observability
+  description: Trace logging and LLM observability for the BMAD pipeline
+  tags:
+    - observability
+    - external
+spec:
+  type: service
+  owner: user:guest
+  lifecycle: production

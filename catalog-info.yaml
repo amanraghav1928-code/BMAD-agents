@@ -70,11 +70,7 @@ spec:
   owner: user:guest
   lifecycle: production
   subcomponentOf: bmad-agent-system
-  dependsOn:
-
-    - component:bmad-agent-designer
-
-    - component:bmad-agent-scrum-master
+  
   
 ---
 apiVersion: backstage.io/v1alpha1
@@ -155,7 +151,7 @@ spec:
   owner: user:guest
   lifecycle: production
   subcomponentOf: bmad-agent-system
-dependsOn:
+  dependsOn:
 
     - component:bmad-agent-designer
     - component:bmad-agent-scrum-master

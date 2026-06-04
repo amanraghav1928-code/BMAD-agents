@@ -32,7 +32,7 @@ metadata:
     backstage.io/techdocs-ref: dir:.
 spec:
   type: service
-  owner: user:guest
+  owner: user:default/guest
   lifecycle: production
   providesApis:
     - bmad-agent-api
@@ -60,7 +60,7 @@ metadata:
       icon: web
 spec:
   type: openapi
-  owner: user:guest
+  owner: user:default/guest
   lifecycle: production
   definition: |
     openapi: "3.0.0"
@@ -140,7 +140,7 @@ metadata:
     - external
 spec:
   type: service
-  owner: user:guest
+  owner: user:default/guest
   lifecycle: production
 
 ---
@@ -155,5 +155,5 @@ metadata:
     - external
 spec:
   type: service
-  owner: user:guest
+  owner: user:default/guest
   lifecycle: production

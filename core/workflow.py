@@ -18,6 +18,9 @@ from core.guardrails import (
     validate_mock_test_output,
     validate_qa_output,
 )
+from core.validator import validator_node, should_fix
+from core.complexity_scorer import score_complexity, get_model_for_complexity
+from core.evaluator import evaluate_pipeline_run
 
 _ROOT = os.path.join(os.path.dirname(__file__), "..")
 _UI_FRAMEWORKS = ("streamlit", "gradio", "dash", "flask", "fastapi")
@@ -239,6 +242,39 @@ def _syntax_check_java(code: str, output_dir: str) -> str:
 # Keep old name for test compatibility
 def _syntax_check(code: str) -> str:
     return _syntax_check_python(code)
+
+
+@observe(name="bmad-complexity-scorer")
+def complexity_scorer_node(state: BMADState) -> BMADState:
+    """Score complexity → select light or heavy model for the rest of pipeline."""
+    session_id = state.get("session_id", "unknown")
+    request    = state.get("user_request", "")
+    score, reason = score_complexity(request, session_id)
+    model = get_model_for_complexity(score)
+    return {
+        **state,
+        "complexity_score":          score,
+        "complexity_reason":         reason,
+        "complexity_model_override": model,
+        "status": "scored",
+    }
+
+
+@observe(name="bmad-eval")
+def eval_node(state: BMADState) -> BMADState:
+    """Score the final output across 4 dimensions and log to Langfuse."""
+    try:
+        result = evaluate_pipeline_run(state)
+        overall = result.overall.value
+        print(f"\n  🎯 [EvalAgent] Overall score: {overall:.0%}")
+        print(f"     Feature coverage:      {result.feature_coverage.value:.0%}")
+        print(f"     Requirement alignment: {result.requirement_alignment.value:.0%}")
+        print(f"     Code quality:          {result.code_quality.value:.0%}")
+        print(f"     Semantic overlap:      {result.semantic_overlap.value:.0%}")
+        return {**state, "eval_scores": result.to_dict(), "status": "evaluated"}
+    except Exception as e:
+        print(f"\n  ⚠️  [EvalAgent] Scoring failed: {e}")
+        return {**state, "status": state.get("status", "unknown")}
 
 
 @observe(name="bmad-analyst")
@@ -737,44 +773,60 @@ def _route_qa(state: BMADState) -> str:
     return END
 
 
+def _route_validator(state: BMADState) -> str:
+    return should_fix(state)
+
+
 def build_workflow():
     graph = StateGraph(BMADState)
 
     # ── Register all nodes ────────────────────────────────────────────────────
-    graph.add_node("analyst",         analyst_node)
-    graph.add_node("product_manager", product_manager_node)
-    graph.add_node("architect",       architect_node)
-    graph.add_node("designer",        designer_node)        # ← NEW
-    graph.add_node("scrum_master",    scrum_master_node)
-    graph.add_node("developer",       developer_node)
-    graph.add_node("code_reviewer",   code_reviewer_node)
-    graph.add_node("executor",        executor_node)
-    graph.add_node("mock_tester",     mock_test_node)       # ← NEW
-    graph.add_node("qa",              qa_node)
+    graph.add_node("complexity_scorer", complexity_scorer_node)  # ← NEW
+    graph.add_node("analyst",           analyst_node)
+    graph.add_node("product_manager",   product_manager_node)
+    graph.add_node("architect",         architect_node)
+    graph.add_node("designer",          designer_node)
+    graph.add_node("scrum_master",      scrum_master_node)
+    graph.add_node("developer",         developer_node)
+    graph.add_node("validator",         validator_node)           # ← NEW
+    graph.add_node("code_reviewer",     code_reviewer_node)
+    graph.add_node("executor",          executor_node)
+    graph.add_node("mock_tester",       mock_test_node)
+    graph.add_node("qa",                qa_node)
+    graph.add_node("eval",              eval_node)                # ← NEW
 
     # ── Pipeline edges ────────────────────────────────────────────────────────
-    graph.set_entry_point("analyst")
-    graph.add_edge("analyst",         "product_manager")
-    graph.add_edge("product_manager", "architect")
+    graph.set_entry_point("complexity_scorer")          # ← Score first
+    graph.add_edge("complexity_scorer", "analyst")
+    graph.add_edge("analyst",           "product_manager")
+    graph.add_edge("product_manager",   "architect")
 
-    # ── PARALLEL: Designer + Scrum Master run simultaneously after Architect ──
-    graph.add_edge("architect",   "designer")       # ← Branch 1
-    graph.add_edge("architect",   "scrum_master")   # ← Branch 2 (runs in parallel)
+    # ── PARALLEL: Designer + Scrum Master ─────────────────────────────────────
+    graph.add_edge("architect",    "designer")
+    graph.add_edge("architect",    "scrum_master")
+    graph.add_edge("designer",     "developer")
+    graph.add_edge("scrum_master", "developer")
 
-    # ── Both branches join at Developer ───────────────────────────────────────
-    graph.add_edge("designer",    "developer")
-    graph.add_edge("scrum_master","developer")
+    # ── Validator feedback loop (NEW) ─────────────────────────────────────────
+    graph.add_edge("developer", "validator")
+    graph.add_conditional_edges(
+        "validator",
+        _route_validator,
+        {"fix": "developer", "passed": "code_reviewer", "max_attempts": "code_reviewer"},
+    )
 
-    # ── Code Reviewer after Developer ─────────────────────────────────────────
-    graph.add_edge("developer",   "code_reviewer")
+    # ── Code Reviewer ──────────────────────────────────────────────────────────
     graph.add_conditional_edges("code_reviewer", _route_reviewer,
                                 {"executor": "executor", "developer": "developer"})
 
+    # ── Executor → Mock Tester → QA → Eval ────────────────────────────────────
     graph.add_conditional_edges("executor", _route_executor,
                                 {"developer": "developer", "mock_tester": "mock_tester"})
     graph.add_edge("mock_tester", "qa")
     graph.add_conditional_edges("qa", _route_qa,
-                                {END: END, "developer": "developer"})
+                                {END: "eval", "developer": "developer"})  # ← go to eval before END
+    graph.add_edge("eval", END)                                            # ← NEW
+
     return graph.compile()
 
 

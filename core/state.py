@@ -1,4 +1,4 @@
-from typing import TypedDict
+from typing import TypedDict, Optional
 
 
 class BMADState(TypedDict):
@@ -7,15 +7,25 @@ class BMADState(TypedDict):
     project_brief: str
     functional_spec: str
     solution_design: str
-    ui_design: str          # ← Designer Agent output
+    ui_design: str
     stories: str
     code: str
-    review_feedback: str    # ← Code Reviewer output
-    mock_test_code:   str    # ← Mock Tester: actual pytest code with mocks
-    mock_test_result: str    # ← Mock Tester: pytest run output (PASSED/FAILED)
-    test_strategy: str       # ← QA Engineer: HOW we test (written first)
-    test_plan: str           # ← QA Engineer: WHAT we tested (written after)
+    review_feedback: str
+    mock_test_code: str
+    mock_test_result: str
+    test_strategy: str
+    test_plan: str
     execution_result: str
     execution_error: str
     debug_iterations: int
     status: str
+    # ── Complexity Scorer (NEW) ────────────────────────────────────────────
+    complexity_score: Optional[int]
+    complexity_reason: Optional[str]
+    complexity_model_override: Optional[str]
+    # ── Validator (NEW) ───────────────────────────────────────────────────
+    validation_passed: Optional[bool]
+    validation_error: Optional[str]
+    validation_attempts: Optional[int]
+    # ── EvalAgent (NEW) ───────────────────────────────────────────────────
+    eval_scores: Optional[dict]

@@ -33,6 +33,14 @@ _INITIAL_STATE: BMADState = {
     "execution_error": "",
     "debug_iterations": 0,
     "status": "pending",
+    # New fields
+    "complexity_score":          None,
+    "complexity_reason":         None,
+    "complexity_model_override": None,
+    "validation_passed":         None,
+    "validation_error":          None,
+    "validation_attempts":       0,
+    "eval_scores":               None,
 }
 
 

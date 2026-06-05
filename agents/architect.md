@@ -25,15 +25,22 @@ OVERVIEW:
 
 TECH STACK:
 - Language: (Python / Java / HTML+CSS+JS / React)
-- UI Framework: (Streamlit / FastAPI / Vanilla HTML / React CDN / None)
-- Database: (SQLite / ChromaDB vector store / in-memory / none)
+- UI Framework: (Streamlit / FastAPI / Spring Boot 3 / Vanilla HTML / React CDN / None)
+- Database: (SQLite / PostgreSQL / ChromaDB vector store / in-memory / none)
 - Embeddings: (sentence-transformers all-MiniLM-L6-v2 / none)
 - Charts: (Altair / Chart.js CDN / none)
 - Observability: (Langfuse — always enabled for RAG/LLM apps)
 - Other: (relevant libraries)
 
+LANGUAGE DECISION RULES — follow STRICTLY:
+- User mentions Java / Spring Boot / Spring / microservice / REST API with Java / enterprise backend → MUST choose Language: Java, Framework: Spring Boot 3, Database: PostgreSQL, Build: Maven
+- User mentions Python / FastAPI / Streamlit / data / ML / AI / analytics → Language: Python
+- User mentions React / SPA / frontend only → Language: React (CDN, single HTML file)
+- User mentions landing page / portfolio / static site → Language: HTML+CSS+JS
+- For ALL Spring Boot projects: always include Swagger/OpenAPI, JWT security, PostgreSQL
+
 LANGUAGE DECISION:
-(Explain why you chose this language. e.g. "React chosen because the user wants a dynamic interactive UI with component reuse")
+(Explain why you chose this language based on the rules above)
 
 UI DESIGN SYSTEM:
 - Color Palette:

@@ -355,7 +355,10 @@ def developer_node(state: BMADState) -> BMADState:
         ),
         session_id=session_id,
     )
-    code = _sanitize(raw)
+    # ⚡ CRITICAL: detect language BEFORE sanitizing — prevents Spring Boot
+    # multi-file output from being destroyed by Python sanitizer
+    detected_lang = _detect_language(raw)
+    code = _sanitize(raw, detected_lang)
     code = validate_code_output(code)
     update_observation("bmad-developer", {}, {"code_length": len(code), "iteration": iteration})
     return {**state, "code": code, "status": "developed", "debug_iterations": iteration + 1}

@@ -1,5 +1,5 @@
 agent: developer
-role: Senior Python Developer
+role: Senior Polyglot Developer
 model: llama-3.3-70b-versatile
 
 skills:
@@ -33,6 +33,18 @@ skills:
   - name: write_main_block
     description: Adds if __name__ == '__main__' block — uvicorn.run() for FastAPI, or st.run-equivalent for Streamlit
 
+  - name: implement_spring_boot_rest
+    description: Builds Spring Boot 3 REST APIs with Controller/Service/Repository layers, JPA entities, JWT security, Swagger docs, multi-file Maven project output using === FILE === delimiters
+
+  - name: implement_java_entities
+    description: Creates JPA entities with proper annotations, relationships, Lombok, validation constraints
+
+  - name: implement_spring_security
+    description: Configures Spring Security with JWT authentication, role-based access control, BCrypt password encoding
+
+  - name: implement_razorpay_integration
+    description: Integrates Razorpay Java SDK for payment order creation, webhook handling, and payment verification
+
 input:
   - functional_spec
   - solution_design
@@ -41,6 +53,8 @@ input:
 output: code
 
 limitations:
-  - Single file output only
-  - No placeholder code or TODOs
-  - FastAPI for REST APIs, Streamlit for UI — never mix both
+  - No placeholder code or TODOs — implement everything fully
+  - Spring Boot projects MUST use === FILE: path === multi-file delimiter format
+  - Python projects: FastAPI for REST APIs, Streamlit for UI — never mix both
+  - Never save Java code with .py extension
+  - Never output shell commands or markdown fences
